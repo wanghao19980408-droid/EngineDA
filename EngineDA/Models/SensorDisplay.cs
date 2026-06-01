@@ -8,23 +8,58 @@ namespace EngineDA.Models
     {
         [ObservableProperty] private string name = "";
         [ObservableProperty] private int channel;
-        [ObservableProperty] private string unit = "";
+
+        private string unit = "";
+        public string Unit
+        {
+            get => unit;
+            set
+            {
+                SetProperty(ref unit, value);
+                OnPropertyChanged(nameof(DisplayGroup));
+            }
+        }
+
         [ObservableProperty] private double min;
         [ObservableProperty] private double max;
         [ObservableProperty] private double kvalue;
         [ObservableProperty] private double bvalue;
-        [ObservableProperty] private SolidColorBrush? color;
+        [ObservableProperty] private string? color;
 
-        private double _rawVoltage;
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(DisplayGroup))]
+        private bool isImportant;
+
+        public string DisplayGroup
+        {
+            get
+            {
+                if (IsImportant) return "⭐ 重要关注";
+
+                string u = Unit?.Trim() ?? "";
+                if (u == "MPa" || u == "kPa" || u == "bar" || u == "Pa") return "🌡️ 压力";
+                if (u == "℃" || u == "°C" || u == "K") return "🔥 温度";
+                if (u == "RPM" || u == "r/min") return "⚙️ 转速";
+                if (u == "%") return "📊 百分比";
+                if (u == "V" || u == "A") return "⚡ 电压/电流";
+                if (u == "Nm") return "💪 扭矩";
+                if (u == "L/min") return "🌊 流量";
+                if (u == "m/s") return "🚀 速度";
+                if (u == "mm") return "📏 位移";
+                if (u == "g") return "📳 振动";
+
+                return "📁 其他数据";
+            }
+        }
+
+        private double rawVoltage;
         public double RawVoltage
         {
-            get => _rawVoltage;
+            get => rawVoltage;
             set
             {
-                if (Math.Abs(_rawVoltage - value) <= 0.0001)
-                    return;
-
-                SetProperty(ref _rawVoltage, value);
+                if (Math.Abs(rawVoltage - value) <= 0.0001) return;
+                SetProperty(ref rawVoltage, value);
                 OnPropertyChanged(nameof(Value));
                 OnValueChanged();
             }
@@ -38,12 +73,12 @@ namespace EngineDA.Models
         {
             ValueChanged?.Invoke(this, EventArgs.Empty);
         }
-          
-        private bool _isAbnormal;
+
+        private bool isAbnormal;
         public bool IsAbnormal
         {
-            get => _isAbnormal;
-            set => SetProperty(ref _isAbnormal, value);
+            get => isAbnormal;
+            set => SetProperty(ref isAbnormal, value);
         }
     }
 }

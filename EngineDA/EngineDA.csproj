@@ -21,14 +21,35 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="CommunityToolkit.Mvvm">
+      <HintPath>bin\Debug\net8.0-windows7.0\CommunityToolkit.Mvvm.dll</HintPath>
+    </Reference>
     <Reference Include="DataConvertLib">
-      <HintPath>bin\Debug\net6.0-windows\DataConvertLib.dll</HintPath>
+      <HintPath>bin\Debug\net8.0-windows7.0\DataConvertLib.dll</HintPath>
+    </Reference>
+    <Reference Include="HandyControl">
+      <HintPath>bin\Debug\net8.0-windows7.0\HandyControl.dll</HintPath>
+    </Reference>
+    <Reference Include="HarfBuzzSharp">
+      <HintPath>bin\Debug\net8.0-windows7.0\HarfBuzzSharp.dll</HintPath>
     </Reference>
     <Reference Include="MiniExcel">
-      <HintPath>bin\Debug\net6.0-windows\MiniExcel.dll</HintPath>
+      <HintPath>bin\Debug\net8.0-windows7.0\MiniExcel.dll</HintPath>
+    </Reference>
+    <Reference Include="ScottPlot">
+      <HintPath>bin\Debug\net8.0-windows7.0\ScottPlot.dll</HintPath>
+    </Reference>
+    <Reference Include="SkiaSharp">
+      <HintPath>bin\Debug\net8.0-windows7.0\SkiaSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="SkiaSharp.HarfBuzz">
+      <HintPath>bin\Debug\net8.0-windows7.0\SkiaSharp.HarfBuzz.dll</HintPath>
     </Reference>
     <Reference Include="UdpEx">
-      <HintPath>bin\Debug\net6.0-windows\UdpEx.dll</HintPath>
+      <HintPath>bin\Debug\net8.0-windows7.0\UdpEx.dll</HintPath>
+    </Reference>
+    <Reference Include="VirtualizingWrapPanel">
+      <HintPath>bin\Debug\net8.0-windows7.0\VirtualizingWrapPanel.dll</HintPath>
     </Reference>
   </ItemGroup>
 

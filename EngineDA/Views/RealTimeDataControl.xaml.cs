@@ -1,5 +1,10 @@
-﻿using EngineDA.ViewModels;
+﻿using System;
+using System.ComponentModel;
+using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
+using EngineDA.Models;
+using EngineDA.ViewModels;
 
 namespace EngineDA.Views
 {
@@ -8,7 +13,6 @@ namespace EngineDA.Views
         public RealTimeDataControl()
         {
             InitializeComponent();
-
         }
     }
 }

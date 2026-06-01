@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using System.Windows.Input;
 
 namespace EngineDA.Views
 {
@@ -10,6 +11,14 @@ namespace EngineDA.Views
         {
             InitializeComponent();
             MessageTextBlock.Text = message;
+        }
+
+        private void TopBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed)
+            {
+                this.DragMove();
+            }
         }
 
         private void ConfirmButton_Click(object sender, RoutedEventArgs e)

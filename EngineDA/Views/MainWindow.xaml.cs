@@ -1,69 +1,73 @@
-﻿using EngineDA.ViewModels;
-using EngineDA.Views;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using EngineDA.ViewModels;
+using EngineDA.Views;
 
 namespace EngineDA
 {
     public partial class MainWindow : Window
     {
-        private readonly DashboardViewModel _dashboardVM = new();
-        private readonly ConfigViewModel _configVM = new();
-        private readonly RealTimeDataControl _realTimeDataControl;
-        private readonly HistoryControl _historyControl;
-        private readonly ConfigControl _configControl;
+        private readonly DashboardViewModel dashboardVM = new();
+        private readonly ConfigViewModel configVM = new();
 
-        private readonly List<TrendsControl> _dynamicTrends = new();
+        private readonly RealTimeDataControl realTimeDataControl;
+        private readonly HistoryControl historyControl;
+        private readonly ConfigControl configControl;
+
+        private readonly List<TrendsControl> dynamicTrends = new();
+
+        private Point dragStartPoint;
+        private bool isDragging = false;
 
         public MainWindow()
         {
             InitializeComponent();
 
-            _realTimeDataControl = new RealTimeDataControl { DataContext = _dashboardVM };
-            _historyControl = new HistoryControl();
-            _configControl = new ConfigControl { DataContext = _configVM };
+            realTimeDataControl = new RealTimeDataControl { DataContext = dashboardVM };
+            historyControl = new HistoryControl();
+            configControl = new ConfigControl { DataContext = configVM };
 
-            MainContentGrid.Children.Add(_realTimeDataControl);
-            MainContentGrid.Children.Add(_historyControl);
-            MainContentGrid.Children.Add(_configControl);
+            MainContentGrid.Children.Add(realTimeDataControl);
+            MainContentGrid.Children.Add(historyControl);
+            MainContentGrid.Children.Add(configControl);
 
-            this.DataContext = _dashboardVM;
-            _dashboardVM.InitializeUdp();
-            ShowPage(_realTimeDataControl);
+            this.DataContext = dashboardVM;
+            dashboardVM.InitializeUdp();
+
+            ShowPage(realTimeDataControl);
             StartClock();
         }
 
-        /// <summary>
-        /// 添加新的趋势图控件
-        /// </summary>
+        private void ToggleSidebar_Click(object sender, RoutedEventArgs e)
+        {
+            double targetWidth = SidebarBorder.Width > 0 ? 0 : 200;
+            DoubleAnimation animation = new DoubleAnimation
+            {
+                To = targetWidth,
+                Duration = TimeSpan.FromMilliseconds(250),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
+            };
+            SidebarBorder.BeginAnimation(WidthProperty, animation);
+        }
+
         private void AddTrendControl_Click(object sender, RoutedEventArgs e)
         {
-            if (_dashboardVM?.Sensors == null) return;
+            if (dashboardVM?.Sensors == null) return;
 
             try
             {
-                // 创建新的趋势图ViewModel和控件
-                var trendsViewModel = new TrendsViewModel(_dashboardVM.Sensors);
-                var trendsControl = new TrendsControl
-                {
-                    DataContext = trendsViewModel
-                };
+                var trendsViewModel = new TrendsViewModel(dashboardVM.Sensors);
+                var trendsControl = new TrendsControl { DataContext = trendsViewModel };
+                var containerGrid = new Grid { Margin = new Thickness(8) };
 
-                // 创建一个容器Grid，包含趋势图和关闭按钮
-                var containerGrid = new Grid
-                {
-                    Margin = new Thickness(8)
-                };
-
-                // 先添加趋势图控件到容器
                 containerGrid.Children.Add(trendsControl);
 
-                // 创建圆形关闭按钮
                 var closeButtonBorder = new Border
                 {
                     Width = 36,
@@ -87,7 +91,6 @@ namespace EngineDA
                     }
                 };
 
-                // 添加阴影效果
                 closeButtonBorder.Effect = new System.Windows.Media.Effects.DropShadowEffect
                 {
                     Color = Colors.Black,
@@ -97,69 +100,59 @@ namespace EngineDA
                     Opacity = 0.3
                 };
 
-                // 鼠标悬停效果
                 closeButtonBorder.MouseEnter += (s, args) =>
                 {
                     closeButtonBorder.Background = new SolidColorBrush(Color.FromRgb(220, 53, 69));
-                    if (closeButtonBorder.Child is TextBlock tb)
-                        tb.Foreground = Brushes.White;
+                    if (closeButtonBorder.Child is TextBlock tb) tb.Foreground = Brushes.White;
                 };
 
                 closeButtonBorder.MouseLeave += (s, args) =>
                 {
                     closeButtonBorder.Background = new SolidColorBrush(Color.FromArgb(230, 255, 255, 255));
-                    if (closeButtonBorder.Child is TextBlock tb)
-                        tb.Foreground = new SolidColorBrush(Color.FromRgb(220, 53, 69));
+                    if (closeButtonBorder.Child is TextBlock tb) tb.Foreground = new SolidColorBrush(Color.FromRgb(220, 53, 69));
                 };
 
-                // 点击关闭事件
                 closeButtonBorder.MouseLeftButtonDown += (s, args) =>
                 {
-                    // 从容器中移除
                     TrendsContainer.Children.Remove(containerGrid);
-                    _dynamicTrends.Remove(trendsControl);
-
-                    // 防止事件冒泡
+                    dynamicTrends.Remove(trendsControl);
                     args.Handled = true;
                 };
 
-                // 设置关闭按钮的层级（确保在最上层）
                 Panel.SetZIndex(closeButtonBorder, 1000);
                 containerGrid.Children.Add(closeButtonBorder);
-
-                // 最后添加到主容器
                 TrendsContainer.Children.Add(containerGrid);
-                _dynamicTrends.Add(trendsControl);
+                dynamicTrends.Add(trendsControl);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"添加趋势图失败: {ex.Message}", "错误",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"添加趋势图失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private void NavRadioButton_Checked(object sender, RoutedEventArgs e)
         {
             if (sender is not RadioButton rb) return;
+            if (realTimeDataControl == null || historyControl == null || configControl == null || TrendsPageGrid == null) return;
 
-            _realTimeDataControl.Visibility = Visibility.Collapsed;
-            _historyControl.Visibility = Visibility.Collapsed;
-            _configControl.Visibility = Visibility.Collapsed;
+            realTimeDataControl.Visibility = Visibility.Collapsed;
+            historyControl.Visibility = Visibility.Collapsed;
+            configControl.Visibility = Visibility.Collapsed;
             TrendsPageGrid.Visibility = Visibility.Collapsed;
 
             switch (rb.Content?.ToString())
             {
                 case "实时数据":
-                    _realTimeDataControl.Visibility = Visibility.Visible;
+                    realTimeDataControl.Visibility = Visibility.Visible;
                     break;
                 case "实时曲线":
                     TrendsPageGrid.Visibility = Visibility.Visible;
                     break;
                 case "历史数据":
-                    _historyControl.Visibility = Visibility.Visible;
+                    historyControl.Visibility = Visibility.Visible;
                     break;
                 case "配置文件":
-                    _configControl.Visibility = Visibility.Visible;
+                    configControl.Visibility = Visibility.Visible;
                     break;
             }
         }
@@ -174,38 +167,97 @@ namespace EngineDA
         {
             var dialog = new ConfirmDialog("确定要关闭程序吗？");
             dialog.ShowDialog();
+
             if (dialog.Result)
             {
-                _dashboardVM.Dispose();
+                dashboardVM.Dispose();
                 Close();
             }
         }
 
         private void Border_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (e.ClickCount == 2)
+            {
+                isDragging = false;
+                Maximize_Click(sender, e);
+                return;
+            }
+
             if (e.LeftButton == MouseButtonState.Pressed)
-                DragMove();
+            {
+                dragStartPoint = e.GetPosition(this);
+                isDragging = true;
+
+                if (this.WindowState == WindowState.Normal)
+                {
+                    this.DragMove();
+                    isDragging = false;
+                }
+            }
+        }
+
+        private void Border_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (!isDragging || e.LeftButton != MouseButtonState.Pressed)
+            {
+                isDragging = false;
+                return;
+            }
+
+            if (this.WindowState == WindowState.Maximized)
+            {
+                Point currentPoint = e.GetPosition(this);
+
+                if (Math.Abs(currentPoint.X - dragStartPoint.X) > 15 ||
+                    Math.Abs(currentPoint.Y - dragStartPoint.Y) > 15)
+                {
+                    Point physicalScreenPos = this.PointToScreen(e.GetPosition(this));
+
+                    this.WindowState = WindowState.Normal;
+
+                    PresentationSource source = PresentationSource.FromVisual(this);
+                    if (source?.CompositionTarget != null)
+                    {
+                        Point logicalScreenPos = source.CompositionTarget.TransformFromDevice.Transform(physicalScreenPos);
+                        this.Left = logicalScreenPos.X - (this.Width / 2);
+                        this.Top = logicalScreenPos.Y - 20;
+                    }
+                    else
+                    {
+                        this.Left = physicalScreenPos.X - (this.Width / 2);
+                        this.Top = physicalScreenPos.Y - 20;
+                    }
+
+                    if (this.Left < 0) this.Left = 0;
+                    if (this.Top < 0) this.Top = 0;
+
+                    isDragging = false;
+
+                    this.DragMove();
+                }
+            }
+        }
+
+        private void Border_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            isDragging = false;
         }
 
         private void OpenKBCalculator_Click(object sender, RoutedEventArgs e)
         {
-            var kbWindow = new KBCalculatorWindow();
-            kbWindow.ShowDialog();
+            new KBCalculatorWindow().ShowDialog();
         }
 
         private void OpenComm_Click(object sender, RoutedEventArgs e)
         {
             var iniPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Config.ini");
-            var commWindow = new CommunicationConfigControl(iniPath);
-            commWindow.ShowDialog();
+            new CommunicationConfigControl(iniPath).ShowDialog();
         }
 
         public void StartClock()
         {
-            var clockTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromMilliseconds(500)
-            };
+            var clockTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             clockTimer.Start();
         }
 
@@ -213,7 +265,6 @@ namespace EngineDA
         {
             foreach (UIElement child in MainContentGrid.Children)
                 child.Visibility = Visibility.Collapsed;
-
             page.Visibility = Visibility.Visible;
         }
     }
