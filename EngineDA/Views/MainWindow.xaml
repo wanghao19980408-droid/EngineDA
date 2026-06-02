@@ -297,10 +297,7 @@
                             Content="实时数据"
                             IsChecked="True" />
                         <RadioButton Checked="NavRadioButton_Checked" Content="实时曲线" />
-                        <RadioButton
-                            Checked="NavRadioButton_Checked"
-                            Content="历史数据"
-                            Visibility="Hidden" />
+                        <RadioButton Checked="NavRadioButton_Checked" Content="历史数据" />
 
                         <TextBlock
                             Margin="20,15,0,10"
@@ -314,7 +311,7 @@
                             FontSize="12"
                             Foreground="#666"
                             Text="工具箱" />
-                        <Button Click="OpenKBCalculator_Click" Content="K/B 计算器" />
+                        <Button Click="OpenKBCalculator_Click" Content="计算器" />
                         <Button Click="OpenComm_Click" Content="通信配置" />
                     </StackPanel>
                 </Border>

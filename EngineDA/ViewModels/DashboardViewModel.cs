@@ -29,7 +29,6 @@ namespace EngineDA.ViewModels
         public ICollectionView FilteredSensorsView => _filteredSensorsView;
 
         private UdpDataService? _udpService;
-        private UdpDataService? _udpServiceGase;
         private readonly SensorConfigService _configService;
 
         private readonly Stopwatch _processStopwatch = new();
@@ -39,8 +38,6 @@ namespace EngineDA.ViewModels
         private bool _isDisposed = false;
 
         private short[]? _latestUdpData;
-        private UDPValues? _latestGaseData;
-
         #endregion
 
         #region 可绑定属性 (Observable Properties)
@@ -112,7 +109,6 @@ namespace EngineDA.ViewModels
         private void UiRefreshTimer_Tick(object? sender, EventArgs e)
         {
             var data = _latestUdpData;
-            var gase = _latestGaseData;
             bool hasUpdate = false;
 
             if (data != null)
@@ -162,8 +158,6 @@ namespace EngineDA.ViewModels
             try
             {
                 _udpService = new UdpDataService();
-                _udpServiceGase = new UdpDataService();
-
                 string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
                 IniConfigHelper.FilePath = iniPath;
 
@@ -198,7 +192,7 @@ namespace EngineDA.ViewModels
 
         private void UpdateConnectionStatus()
         {
-            bool connected = (_udpService?.IsConnected ?? false) || (_udpServiceGase?.IsConnected ?? false);
+            bool connected = (_udpService?.IsConnected ?? false);
 
             if (IsConnected != connected)
             {
@@ -274,9 +268,7 @@ namespace EngineDA.ViewModels
             try
             {
                 _udpService?.Stop();
-                _udpServiceGase?.Stop();
                 _udpService = null;
-                _udpServiceGase = null;
             }
             catch {}
 

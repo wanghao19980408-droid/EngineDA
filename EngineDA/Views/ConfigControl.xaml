@@ -33,8 +33,7 @@
                 Margin="15,0,0,2"
                 VerticalAlignment="Bottom"
                 FontSize="13"
-                Foreground="#888888"
-                Text="（支持双击单元格编辑，按Delete键删除选中行，最下方空白行可新增）" />
+                Foreground="#888888" />
         </StackPanel>
 
         <Border
