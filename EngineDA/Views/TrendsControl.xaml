@@ -2,10 +2,130 @@
     x:Class="EngineDA.Views.TrendsControl"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    d:DesignHeight="600"
-    d:DesignWidth="1200"
-    FontFamily="Microsoft YaHei UI"
-    Loaded="UserControl_Loaded"
-    mc:Ignorable="d" />
+    xmlns:ScottPlot="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.WPF"
+    Background="#1E1E24">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="60" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border
+            Grid.Row="0"
+            Background="#25252D"
+            BorderBrush="#33333C"
+            BorderThickness="0,0,0,1">
+            <StackPanel Margin="10,0" Orientation="Horizontal">
+                <TextBlock
+                    Margin="0,0,10,0"
+                    VerticalAlignment="Center"
+                    FontSize="14"
+                    FontWeight="Bold"
+                    Foreground="White"
+                    Text="选择传感器:" />
+
+                <ComboBox
+                    x:Name="CmbSensors"
+                    Width="150"
+                    Height="30"
+                    VerticalAlignment="Center"
+                    DisplayMemberPath="Name" />
+
+                <Button
+                    x:Name="BtnChangeColor"
+                    Width="30"
+                    Height="30"
+                    Margin="10,0,0,0"
+                    Background="Lime"
+                    Click="BtnChangeColor_Click"
+                    Cursor="Hand"
+                    ToolTip="点击更换颜色" />
+
+                <Button
+                    x:Name="BtnAdd"
+                    Width="80"
+                    Height="30"
+                    Margin="10,0,0,0"
+                    Background="#007ACC"
+                    BorderThickness="0"
+                    Click="BtnAdd_Click"
+                    Content="➕ 添加"
+                    Cursor="Hand"
+                    Foreground="White" />
+
+                <Separator
+                    Width="1"
+                    Margin="15,10"
+                    Background="#33333C" />
+
+                <Button
+                    x:Name="BtnAutoY"
+                    Width="100"
+                    Height="30"
+                    Margin="0,0,10,0"
+                    Background="DarkOliveGreen"
+                    BorderThickness="0"
+                    Click="BtnAutoY_Click"
+                    Content="✅ 自适应Y轴"
+                    Cursor="Hand"
+                    Foreground="White" />
+                <Button
+                    x:Name="BtnFreeze"
+                    Width="100"
+                    Height="30"
+                    Margin="0,0,10,0"
+                    Background="DarkOrange"
+                    BorderThickness="0"
+                    Click="BtnFreeze_Click"
+                    Content="⏸ 画面冻结"
+                    Cursor="Hand"
+                    Foreground="Black" />
+                <Button
+                    x:Name="BtnClear"
+                    Width="80"
+                    Height="30"
+                    Margin="0,0,10,0"
+                    Background="DarkRed"
+                    BorderThickness="0"
+                    Click="BtnClear_Click"
+                    Content="🗑 清屏"
+                    Cursor="Hand"
+                    Foreground="White" />
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="250" />
+            </Grid.ColumnDefinitions>
+
+            <ScottPlot:WpfPlot
+                x:Name="WpfPlot1"
+                Grid.Column="0"
+                Margin="5" />
+
+            <Border
+                Grid.Column="1"
+                Background="#1A1A1F"
+                BorderBrush="#33333C"
+                BorderThickness="1,0,0,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel
+                        x:Name="InfoPanel"
+                        Margin="10"
+                        Orientation="Vertical">
+                        <TextBlock
+                            Margin="0,0,0,15"
+                            HorizontalAlignment="Center"
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Foreground="White"
+                            Text="实时通道监控" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

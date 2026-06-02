@@ -17,6 +17,32 @@ namespace EngineDA.Models
             {
                 SetProperty(ref unit, value);
                 OnPropertyChanged(nameof(DisplayGroup));
+                OnPropertyChanged(nameof(CardWidth));
+                OnPropertyChanged(nameof(CardHeight));
+            }
+        }
+
+        public double CardWidth
+        {
+            get
+            {
+                string u = Unit?.Trim() ?? "";
+                if (u == "RPM" || u == "r/min") return 340;
+
+                if (u == "℃" || u == "°C" || u == "K" || u == "L/min") return 290;
+
+                return 230;
+            }
+        }
+
+        public double CardHeight
+        {
+            get
+            {
+                string u = Unit?.Trim() ?? "";
+                if (u == "RPM" || u == "r/min") return 160;
+                if (u == "℃" || u == "°C" || u == "K" || u == "L/min") return 150;
+                return 135;
             }
         }
 
@@ -67,11 +93,26 @@ namespace EngineDA.Models
 
         public double Value => Kvalue * RawVoltage + Bvalue;
 
+        public string DisplayValue
+        {
+            get
+            {
+                string u = Unit?.Trim() ?? "";
+                if (u == "RPM" || u == "r/min")
+                {
+                    return Math.Truncate(Value).ToString("0");
+                }
+                double truncatedValue = Math.Truncate(Value * 100.0) / 100.0;
+                return truncatedValue.ToString("0.00");
+            }
+        }
+
         public event EventHandler? ValueChanged;
 
         protected virtual void OnValueChanged()
         {
             ValueChanged?.Invoke(this, EventArgs.Empty);
+            OnPropertyChanged(nameof(DisplayValue));
         }
 
         private bool isAbnormal;

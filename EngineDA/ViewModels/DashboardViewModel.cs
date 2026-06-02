@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using EngineDA.Converts;
 using EngineDA.Helpers;
 using EngineDA.Models;
@@ -61,7 +62,6 @@ namespace EngineDA.ViewModels
         #endregion
 
         #region 构造与初始化
-
         public DashboardViewModel()
         {
             _configService = new SensorConfigService();
@@ -75,6 +75,16 @@ namespace EngineDA.ViewModels
             StartTimers();
 
             InitializeUdp();
+
+            WeakReferenceMessenger.Default.Register<DashboardViewModel, ConfigReloadMessage>(this, (r, m) =>
+            {
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    r.LoadSensorConfigs();
+
+                    r._filteredSensorsView?.Refresh();
+                });
+            });
         }
 
         private void SetupGrouping()
@@ -90,9 +100,19 @@ namespace EngineDA.ViewModels
                 liveView.LiveGroupingProperties.Add("DisplayGroup");
 
                 liveView.IsLiveSorting = true;
-                liveView.LiveSortingProperties.Add("Name");
+                liveView.LiveSortingProperties.Add("IsImportant");
+                liveView.LiveSortingProperties.Add("Unit");
                 liveView.LiveSortingProperties.Add("Channel");
+                liveView.LiveSortingProperties.Add("Name");
             }
+
+            _filteredSensorsView.SortDescriptions.Clear();
+
+            _filteredSensorsView.SortDescriptions.Add(new SortDescription("IsImportant", ListSortDirection.Descending));
+
+            _filteredSensorsView.SortDescriptions.Add(new SortDescription("Unit", ListSortDirection.Ascending));
+
+            _filteredSensorsView.SortDescriptions.Add(new SortDescription("Channel", ListSortDirection.Ascending));
         }
 
         private void StartTimers()
@@ -162,9 +182,6 @@ namespace EngineDA.ViewModels
             }
         }
 
-        /// <summary>
-        /// 处理特殊结构化数据 (Gase)
-        /// </summary>
         private void OnGaseUdpDataReceived(object? sender, UDPValues e)
         {
             Application.Current?.Dispatcher.InvokeAsync(() =>
@@ -181,9 +198,6 @@ namespace EngineDA.ViewModels
             }, DispatcherPriority.DataBind);
         }
 
-        /// <summary>
-        /// 处理通用UDP数据
-        /// </summary>
         private void OnGeneralUdpDataReceived(object? sender, short[] data)
         {
             Application.Current?.Dispatcher.InvokeAsync(() =>
@@ -201,9 +215,6 @@ namespace EngineDA.ViewModels
             }, DispatcherPriority.DataBind);
         }
 
-        /// <summary>
-        /// 应用特殊传感器的计算公式
-        /// </summary>
         private void ApplySpecialFormula(SensorDisplay sensor, UDPValues e)
         {
             const float factor = 0.000579f;
@@ -212,16 +223,16 @@ namespace EngineDA.ViewModels
             switch (sensor.Name)
             {
                 case "Gpb3":
-                    if (e.AI_value.Length > 30) sensor.RawVoltage = e.AI_value[30] * factor + offset;
+                    if (e.AI_value?.Length > 30) sensor.RawVoltage = e.AI_value[30] * factor + offset;
                     break;
                 case "Gpb8":
-                    if (e.AI_value.Length > 35) sensor.RawVoltage = e.AI_value[35] * factor + offset;
+                    if (e.AI_value?.Length > 35) sensor.RawVoltage = e.AI_value[35] * factor + offset;
                     break;
                 case "Cpb15":
-                    if (e.AI_value.Length > 66) sensor.RawVoltage = e.AI_value[66] * factor + offset;
+                    if (e.AI_value?.Length > 66) sensor.RawVoltage = e.AI_value[66] * factor + offset;
                     break;
                 case "Cpb17":
-                    if (e.AI_value.Length > 69) sensor.RawVoltage = e.AI_value[69] * factor + offset;
+                    if (e.AI_value?.Length > 69) sensor.RawVoltage = e.AI_value[69] * factor + offset;
                     break;
             }
         }

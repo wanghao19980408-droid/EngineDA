@@ -1,42 +1,51 @@
 ﻿using EngineDA.Models;
 using MiniExcelLibs;
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 
-namespace EngineDA.Services;
-
-public class SensorConfigService
+namespace EngineDA.Services
 {
-    private readonly string ConfigPath;
-
-    public SensorConfigService()
+    public class SensorConfigService
     {
-        ConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sensors.xlsx");
-    }
+        private readonly string ConfigPath;
 
-    public ObservableCollection<SensorConfig> LoadConfigs(string sheetName)
-    {
-        if (!File.Exists(ConfigPath))
+        public SensorConfigService()
         {
-            MiniExcel.SaveAs(ConfigPath, new List<SensorConfig>());
-            return new ObservableCollection<SensorConfig>();
+            ConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sensors.xlsx");
         }
 
-        var list = MiniExcel.Query<SensorConfig>(ConfigPath, sheetName).ToList();
-        return new ObservableCollection<SensorConfig>(list);
-    }
+        public ObservableCollection<SensorConfig> LoadConfigs(string sheetName)
+        {
+            if (!File.Exists(ConfigPath))
+            {
+                return new ObservableCollection<SensorConfig>();
+            }
 
-    public void SaveConfigs(ObservableCollection<SensorConfig> configs, string sheetName)
-    {
-        if (File.Exists(ConfigPath))
-            File.Delete(ConfigPath);
+            var list = MiniExcel.Query<SensorConfig>(ConfigPath, sheetName).ToList();
+            return new ObservableCollection<SensorConfig>(list);
+        }
 
-        MiniExcel.SaveAs(ConfigPath, configs, sheetName: sheetName);
-    }
+        public void SaveAllConfigs(IEnumerable<SheetConfig> sheets)
+        {
+            if (File.Exists(ConfigPath))
+                File.Delete(ConfigPath);
 
-    public List<string> GetSheetNames()
-    {
-        if (!File.Exists(ConfigPath)) return new List<string>();
-        return MiniExcel.GetSheetNames(ConfigPath).ToList();
+            var sheetsDict = new Dictionary<string, object>();
+            foreach (var sheet in sheets)
+            {
+                sheetsDict.Add(sheet.SheetName, sheet.SensorConfigs);
+            }
+
+            MiniExcel.SaveAs(ConfigPath, sheetsDict);
+        }
+
+        public List<string> GetSheetNames()
+        {
+            if (!File.Exists(ConfigPath)) return new List<string>();
+            return MiniExcel.GetSheetNames(ConfigPath).ToList();
+        }
     }
 }

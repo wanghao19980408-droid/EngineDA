@@ -331,25 +331,7 @@
                                 <StackPanel
                                     Margin="0,0,0,8"
                                     DockPanel.Dock="Top"
-                                    Orientation="Horizontal">
-                                    <Button
-                                        Width="120"
-                                        Height="32"
-                                        Background="#007ACC"
-                                        BorderThickness="0"
-                                        Click="AddTrendControl_Click"
-                                        Content="添加趋势图"
-                                        Cursor="Hand"
-                                        Foreground="White">
-                                        <Button.Template>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}" CornerRadius="4">
-                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Button.Template>
-                                    </Button>
-                                </StackPanel>
+                                    Orientation="Horizontal" />
                                 <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                                     <WrapPanel
                                         x:Name="TrendsContainer"

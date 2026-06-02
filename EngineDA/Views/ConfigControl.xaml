@@ -4,126 +4,227 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="clr-namespace:EngineDA.ViewModels"
     HorizontalAlignment="Stretch"
-    VerticalAlignment="Stretch">
+    VerticalAlignment="Stretch"
+    Background="#1E1E24">
 
-    <Grid Margin="10" Background="#F0F4F8">
+    <Grid Margin="20">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="50" />
+            <RowDefinition Height="60" />
         </Grid.RowDefinitions>
 
-        <TabControl
+        <StackPanel
             Grid.Row="0"
-            ItemsSource="{Binding Sheets}"
-            SelectedIndex="0">
-            <TabControl.ItemTemplate>
-                <DataTemplate>
-                    <TextBlock
-                        Padding="8,4"
-                        FontWeight="Bold"
-                        Text="{Binding SheetName}" />
-                </DataTemplate>
-            </TabControl.ItemTemplate>
+            Margin="0,0,0,15"
+            Orientation="Horizontal">
+            <TextBlock
+                Margin="0,0,10,0"
+                VerticalAlignment="Center"
+                FontSize="22"
+                Text="⚙️" />
+            <TextBlock
+                VerticalAlignment="Center"
+                FontSize="20"
+                FontWeight="Bold"
+                Foreground="#E0E0E0"
+                Text="传感器参数配置" />
+            <TextBlock
+                Margin="15,0,0,2"
+                VerticalAlignment="Bottom"
+                FontSize="13"
+                Foreground="#888888"
+                Text="（支持双击单元格编辑，按Delete键删除选中行，最下方空白行可新增）" />
+        </StackPanel>
 
-            <TabControl.ContentTemplate>
-                <DataTemplate>
-                    <DataGrid
-                        AlternatingRowBackground="#F7F9FC"
-                        AutoGenerateColumns="False"
-                        CanUserAddRows="False"
-                        FontFamily="Segoe UI"
-                        FontSize="16"
-                        FontWeight="Bold"
-                        GridLinesVisibility="Horizontal"
-                        HeadersVisibility="Column"
-                        HorizontalGridLinesBrush="#E0E0E0"
-                        ItemsSource="{Binding SensorConfigs}"
-                        RowBackground="White"
-                        RowHeight="40"
-                        SelectedItem="{Binding DataContext.SelectedSensorConfig, RelativeSource={RelativeSource AncestorType=UserControl}, Mode=TwoWay}"
-                        SelectionMode="Single"
-                        SelectionUnit="FullRow"
-                        VerticalGridLinesBrush="#E0E0E0">
+        <Border
+            Grid.Row="1"
+            Background="#25252D"
+            BorderBrush="#33333C"
+            BorderThickness="1"
+            CornerRadius="8">
+            <TabControl
+                Margin="10"
+                Background="Transparent"
+                BorderThickness="0"
+                ItemsSource="{Binding Sheets}">
 
-                        <DataGrid.RowStyle>
-                            <Style TargetType="DataGridRow">
-                                <Setter Property="Cursor" Value="Hand" />
-                                <Setter Property="Background" Value="White" />
-                                <Setter Property="Foreground" Value="Black" />
-                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                <Setter Property="VerticalContentAlignment" Value="Center" />
-                                <Setter Property="BorderThickness" Value="0" />
-                            </Style>
-                        </DataGrid.RowStyle>
+                <TabControl.ItemContainerStyle>
+                    <Style TargetType="TabItem">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="Foreground" Value="#888888" />
+                        <Setter Property="Cursor" Value="Hand" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="TabItem">
+                                    <Border
+                                        x:Name="border"
+                                        Margin="0,0,8,10"
+                                        Padding="20,10"
+                                        Background="{TemplateBinding Background}"
+                                        CornerRadius="6">
+                                        <ContentPresenter
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            ContentSource="Header" />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#2A2A35" />
+                                            <Setter Property="Foreground" Value="#E0E0E0" />
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#007ACC" />
+                                            <Setter Property="Foreground" Value="White" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </TabControl.ItemContainerStyle>
 
-                        <DataGrid.CellStyle>
-                            <Style TargetType="DataGridCell">
-                                <Setter Property="Background" Value="White" />
-                                <Setter Property="Foreground" Value="Black" />
-                                <Setter Property="HorizontalContentAlignment" Value="Center" />
-                                <Setter Property="VerticalContentAlignment" Value="Center" />
-                                <Setter Property="BorderThickness" Value="0" />
-                                <Style.Triggers>
-                                    <Trigger Property="IsSelected" Value="True">
-                                        <Setter Property="Background" Value="White" />
-                                        <Setter Property="Foreground" Value="Black" />
-                                        <Setter Property="BorderThickness" Value="0" />
-                                    </Trigger>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="White" />
-                                        <Setter Property="Foreground" Value="Black" />
-                                        <Setter Property="BorderThickness" Value="0" />
-                                    </Trigger>
-                                </Style.Triggers>
-                            </Style>
-                        </DataGrid.CellStyle>
+                <TabControl.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock
+                            FontSize="15"
+                            FontWeight="Bold"
+                            Text="{Binding SheetName}" />
+                    </DataTemplate>
+                </TabControl.ItemTemplate>
 
-                        <DataGrid.Columns>
-                            <DataGridTextColumn
-                                Width="2*"
-                                Binding="{Binding Name}"
-                                Header="Name" />
-                            <DataGridTextColumn
-                                Width="1*"
-                                Binding="{Binding Channel}"
-                                Header="Channel" />
-                            <DataGridTextColumn
-                                Width="1*"
-                                Binding="{Binding K}"
-                                Header="K" />
-                            <DataGridTextColumn
-                                Width="1*"
-                                Binding="{Binding B}"
-                                Header="B" />
-                            <DataGridTextColumn
-                                Width="1*"
-                                Binding="{Binding Unit}"
-                                Header="Unit" />
-                            <DataGridTextColumn
-                                Width="1*"
-                                Binding="{Binding Min}"
-                                Header="Min" />
-                            <DataGridTextColumn
-                                Width="1*"
-                                Binding="{Binding Max}"
-                                Header="Max" />
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </DataTemplate>
-            </TabControl.ContentTemplate>
-        </TabControl>
+                <TabControl.ContentTemplate>
+                    <DataTemplate>
+                        <DataGrid
+                            Margin="0,5,0,0"
+                            AlternatingRowBackground="#1F1F26"
+                            AutoGenerateColumns="False"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            CanUserAddRows="True"
+                            CanUserDeleteRows="True"
+                            CanUserSortColumns="False"
+                            FontFamily="Segoe UI"
+                            FontSize="15"
+                            GridLinesVisibility="Horizontal"
+                            HeadersVisibility="Column"
+                            HorizontalGridLinesBrush="#33333C"
+                            ItemsSource="{Binding SensorConfigs}"
+                            RowBackground="#25252D"
+                            RowHeight="40"
+                            SelectedItem="{Binding DataContext.SelectedSensorConfig, RelativeSource={RelativeSource AncestorType=UserControl}, Mode=TwoWay}"
+                            SelectionMode="Single"
+                            SelectionUnit="FullRow"
+                            VerticalGridLinesBrush="Transparent">
+
+                            <DataGrid.ColumnHeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="#1A1A1F" />
+                                    <Setter Property="Foreground" Value="#A0A0A0" />
+                                    <Setter Property="FontWeight" Value="Bold" />
+                                    <Setter Property="Padding" Value="10,0" />
+                                    <Setter Property="Height" Value="40" />
+                                    <Setter Property="BorderThickness" Value="0" />
+                                </Style>
+                            </DataGrid.ColumnHeaderStyle>
+
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow">
+                                    <Setter Property="Cursor" Value="Hand" />
+                                    <Setter Property="Foreground" Value="#E0E0E0" />
+                                    <Setter Property="BorderThickness" Value="0" />
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#2A2A35" />
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="#005A9E" />
+                                            <Setter Property="Foreground" Value="White" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.RowStyle>
+
+                            <DataGrid.CellStyle>
+                                <Style TargetType="DataGridCell">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="DataGridCell">
+                                                <Border
+                                                    Padding="10,0"
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="Transparent"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter VerticalAlignment="Center" />
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="Transparent" />
+                                            <Setter Property="BorderThickness" Value="0" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.CellStyle>
+
+                            <DataGrid.Columns>
+                                <DataGridTextColumn
+                                    Width="2*"
+                                    Binding="{Binding Name}"
+                                    Header="传感器名称 (Name)" />
+                                <DataGridTextColumn
+                                    Width="1*"
+                                    Binding="{Binding Channel}"
+                                    Header="通道 (CH)" />
+                                <DataGridTextColumn
+                                    Width="1*"
+                                    Binding="{Binding K}"
+                                    Header="斜率 (K)" />
+                                <DataGridTextColumn
+                                    Width="1*"
+                                    Binding="{Binding B}"
+                                    Header="截距 (B)" />
+                                <DataGridTextColumn
+                                    Width="1*"
+                                    Binding="{Binding Unit}"
+                                    Header="单位 (Unit)" />
+                                <DataGridTextColumn
+                                    Width="1*"
+                                    Binding="{Binding Min}"
+                                    Header="下限 (Min)" />
+                                <DataGridTextColumn
+                                    Width="1*"
+                                    Binding="{Binding Max}"
+                                    Header="上限 (Max)" />
+                                <DataGridTextColumn
+                                    Width="1.2*"
+                                    Binding="{Binding Color}"
+                                    Header="指示颜色 (Color)" />
+                                <DataGridCheckBoxColumn
+                                    Width="1*"
+                                    Binding="{Binding IsImportant}"
+                                    Header="⭐ 重点关注" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DataTemplate>
+                </TabControl.ContentTemplate>
+            </TabControl>
+        </Border>
 
         <Button
-            Grid.Row="1"
+            Grid.Row="2"
             Width="150"
-            Height="35"
+            Height="38"
             HorizontalAlignment="Right"
-            VerticalAlignment="Center"
-            Background="#1E90FF"
+            VerticalAlignment="Bottom"
+            Background="#007ACC"
             BorderThickness="0"
             Command="{Binding SaveAndRestartCommand}"
-            Content="保存"
+            Content="💾 保存全部配置"
             Cursor="Hand"
+            FontSize="15"
             FontWeight="Bold"
             Foreground="White">
             <Button.Style>
@@ -137,6 +238,14 @@
                             </ControlTemplate>
                         </Setter.Value>
                     </Setter>
+                    <Style.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="#005A9E" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="Background" Value="#004C87" />
+                        </Trigger>
+                    </Style.Triggers>
                 </Style>
             </Button.Style>
         </Button>
