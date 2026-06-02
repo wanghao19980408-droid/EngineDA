@@ -37,6 +37,14 @@ namespace EngineDA
             MainContentGrid.Children.Add(historyControl);
             MainContentGrid.Children.Add(configControl);
 
+            // ==================== 方案 A：初始化并添加实时曲线组件 ====================
+            // 不需要设置 Width 和 Height，外层 Grid 容器会自动让它撑满可用空间
+            var trendsControl = new TrendsControl();
+
+            dynamicTrends.Add(trendsControl);
+            TrendsContainer.Children.Add(trendsControl);
+            // ======================================================================
+
             this.DataContext = dashboardVM;
             dashboardVM.InitializeUdp();
 

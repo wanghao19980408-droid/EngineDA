@@ -16,7 +16,6 @@ namespace EngineDA.Views
             LoadConfig();
         }
 
-        // 允许按住顶部标题栏拖动窗口
         private void TopBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.LeftButton == MouseButtonState.Pressed)
@@ -27,28 +26,28 @@ namespace EngineDA.Views
 
         private void LoadConfig()
         {
-            txtLocalIP.Text = IniConfigHelper.ReadIniData("Engine", "Local", "192.168.25.182", iniPath);
+            txtLocalIP.Text = "0.0.0.0";
+            txtLocalIP.IsEnabled = false;
+
             txtMulticastIP.Text = IniConfigHelper.ReadIniData("Engine", "IP", "224.0.1.63", iniPath);
             txtPort.Text = IniConfigHelper.ReadIniData("Engine", "PORT", "8063", iniPath);
         }
 
         private void BtnSave_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new Views.ConfirmDialog("确定要保存当前配置吗？");
+            var dialog = new Views.ConfirmDialog("确定要保存当前配置吗？(重启软件后生效)");
             dialog.ShowDialog();
 
             if (dialog.Result)
             {
                 try
                 {
-                    IniConfigHelper.WriteIniData("Engine", "Local", txtLocalIP.Text, iniPath);
-                    IniConfigHelper.WriteIniData("Engine", "IP", txtMulticastIP.Text, iniPath);
-                    IniConfigHelper.WriteIniData("Engine", "PORT", txtPort.Text, iniPath);
+                    IniConfigHelper.WriteIniData("Engine", "IP", txtMulticastIP.Text.Trim(), iniPath);
+                    IniConfigHelper.WriteIniData("Engine", "PORT", txtPort.Text.Trim(), iniPath);
 
-                    // 保存成功后关闭自身窗口
                     Close();
 
-                    var successDialog = new Views.ConfirmDialog("通信配置保存成功！");
+                    var successDialog = new Views.ConfirmDialog("通信配置保存成功！请重启软件以生效。");
                     successDialog.ShowDialog();
                 }
                 catch (Exception ex)

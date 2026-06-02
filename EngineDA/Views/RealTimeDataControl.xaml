@@ -204,11 +204,12 @@
                                                     <Setter Property="Content" Value="☆" />
                                                     <Setter Property="Foreground" Value="#FFFFFF" />
                                                     <Setter Property="Opacity" Value="0.5" />
-                                                    <Setter Property="FontSize" Value="22" />
+                                                    <Setter Property="FontSize" Value="24" />
                                                     <Setter Property="Template">
                                                         <Setter.Value>
                                                             <ControlTemplate TargetType="ToggleButton">
                                                                 <TextBlock
+                                                                    Margin="0,0,5,0"
                                                                     HorizontalAlignment="Center"
                                                                     VerticalAlignment="Center"
                                                                     FontSize="{TemplateBinding FontSize}"
@@ -219,7 +220,8 @@
                                                     </Setter>
                                                     <Style.Triggers>
                                                         <Trigger Property="IsChecked" Value="True">
-                                                            <Setter Property="Content" Value="⭐" />
+                                                            <Setter Property="Content" Value="★" />
+                                                            <Setter Property="Foreground" Value="#FFD700" />
                                                             <Setter Property="Opacity" Value="1" />
                                                         </Trigger>
                                                     </Style.Triggers>
@@ -239,17 +241,18 @@
 
                                 <Viewbox
                                     Grid.Row="1"
-                                    Margin="15,10,15,15"
+                                    Margin="15,10,15,25"
                                     Stretch="Uniform"
                                     StretchDirection="DownOnly">
 
                                     <StackPanel
+                                        Margin="0,0,15,0"
                                         HorizontalAlignment="Center"
                                         VerticalAlignment="Center"
                                         Orientation="Horizontal">
 
                                         <TextBlock
-                                            FontSize="55"
+                                            FontSize="50"
                                             FontWeight="Black"
                                             Text="{Binding DisplayValue}">
                                             <TextBlock.Style>
@@ -265,9 +268,9 @@
                                         </TextBlock>
 
                                         <TextBlock
-                                            Margin="10,0,0,12"
+                                            Margin="8,0,0,10"
                                             VerticalAlignment="Bottom"
-                                            FontSize="22"
+                                            FontSize="20"
                                             FontWeight="Bold"
                                             Foreground="#A0A0A0"
                                             Text="{Binding Unit}" />

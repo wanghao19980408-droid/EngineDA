@@ -27,7 +27,8 @@ namespace EngineDA.Models
             get
             {
                 string u = Unit?.Trim() ?? "";
-                if (u == "RPM" || u == "r/min") return 340;
+
+                if (u == "RPM" || u == "r/min") return 290;
 
                 if (u == "℃" || u == "°C" || u == "K" || u == "L/min") return 290;
 
@@ -40,7 +41,7 @@ namespace EngineDA.Models
             get
             {
                 string u = Unit?.Trim() ?? "";
-                if (u == "RPM" || u == "r/min") return 160;
+                if (u == "RPM" || u == "r/min") return 150;
                 if (u == "℃" || u == "°C" || u == "K" || u == "L/min") return 150;
                 return 135;
             }
@@ -100,7 +101,7 @@ namespace EngineDA.Models
                 string u = Unit?.Trim() ?? "";
                 if (u == "RPM" || u == "r/min")
                 {
-                    return Math.Truncate(Value).ToString("0");
+                    return Math.Truncate(Value).ToString("#,##0");
                 }
                 double truncatedValue = Math.Truncate(Value * 100.0) / 100.0;
                 return truncatedValue.ToString("0.00");

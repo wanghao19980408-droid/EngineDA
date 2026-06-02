@@ -33,12 +33,13 @@ namespace EngineDA.ViewModels
         private readonly SensorConfigService _configService;
 
         private readonly Stopwatch _processStopwatch = new();
-        private DispatcherTimer? _uiRefreshTimer; 
-        private DispatcherTimer? _clockTimer;     
+        private DispatcherTimer? _uiRefreshTimer;
+        private DispatcherTimer? _clockTimer;
 
         private bool _isDisposed = false;
 
-        private readonly HashSet<string> _specialSensors = new() { "Gpb3", "Gpb8", "Cpb15", "Cpb17" };
+        private short[]? _latestUdpData;
+        private UDPValues? _latestGaseData;
 
         #endregion
 
@@ -74,14 +75,11 @@ namespace EngineDA.ViewModels
 
             StartTimers();
 
-            InitializeUdp();
-
             WeakReferenceMessenger.Default.Register<DashboardViewModel, ConfigReloadMessage>(this, (r, m) =>
             {
                 Application.Current?.Dispatcher.Invoke(() =>
                 {
                     r.LoadSensorConfigs();
-
                     r._filteredSensorsView?.Refresh();
                 });
             });
@@ -94,24 +92,9 @@ namespace EngineDA.ViewModels
             _filteredSensorsView.GroupDescriptions.Clear();
             _filteredSensorsView.GroupDescriptions.Add(new PropertyGroupDescription("DisplayGroup"));
 
-            if (_filteredSensorsView is ListCollectionView liveView)
-            {
-                liveView.IsLiveGrouping = true;
-                liveView.LiveGroupingProperties.Add("DisplayGroup");
-
-                liveView.IsLiveSorting = true;
-                liveView.LiveSortingProperties.Add("IsImportant");
-                liveView.LiveSortingProperties.Add("Unit");
-                liveView.LiveSortingProperties.Add("Channel");
-                liveView.LiveSortingProperties.Add("Name");
-            }
-
             _filteredSensorsView.SortDescriptions.Clear();
-
             _filteredSensorsView.SortDescriptions.Add(new SortDescription("IsImportant", ListSortDirection.Descending));
-
             _filteredSensorsView.SortDescriptions.Add(new SortDescription("Unit", ListSortDirection.Ascending));
-
             _filteredSensorsView.SortDescriptions.Add(new SortDescription("Channel", ListSortDirection.Ascending));
         }
 
@@ -121,7 +104,32 @@ namespace EngineDA.ViewModels
             _clockTimer.Tick += (_, _) => CurrentTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             _clockTimer.Start();
 
-            _uiRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
+            _uiRefreshTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(50) };
+            _uiRefreshTimer.Tick += UiRefreshTimer_Tick;
+            _uiRefreshTimer.Start();
+        }
+
+        private void UiRefreshTimer_Tick(object? sender, EventArgs e)
+        {
+            var data = _latestUdpData;
+            var gase = _latestGaseData;
+            bool hasUpdate = false;
+
+            if (data != null)
+            {
+                foreach (var sensor in Sensors)
+                {
+                    if (sensor.Channel < 0 || sensor.Channel >= data.Length) continue;
+
+                    sensor.RawVoltage = data[sensor.Channel] / 1000f;
+                    CheckSensorAbnormal(sensor);
+                }
+                hasUpdate = true;
+            }
+            if (hasUpdate)
+            {
+                NotifyDataUpdated();
+            }
         }
 
         #endregion
@@ -159,21 +167,11 @@ namespace EngineDA.ViewModels
                 string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
                 IniConfigHelper.FilePath = iniPath;
 
-                string localIp = IniConfigHelper.ReadIniData("Engine", "Local", "0.0.0.0");
-                string multicastIp = IniConfigHelper.ReadIniData("Engine", "IP", "239.0.0.1");
-                int port = int.Parse(IniConfigHelper.ReadIniData("Engine", "PORT", "12345"));
-
-                string gaseLocalIp = IniConfigHelper.ReadIniData("Gase", "Local", "0.0.0.0");
-                string gaseMulticastIp = IniConfigHelper.ReadIniData("Gase", "IP", "239.0.0.1");
-                int gasePort = int.Parse(IniConfigHelper.ReadIniData("Gase", "PORT", "12345"));
-                int[] gaseHeader = { 246, 10, 26, 8, 1, 216, 0 };
-
+                string localIp = "0.0.0.0";
+                string multicastIp = IniConfigHelper.ReadIniData("Engine", "IP", "224.0.1.63");
+                int port = int.Parse(IniConfigHelper.ReadIniData("Engine", "PORT", "8063"));
                 _udpService.Initialize(localIp, multicastIp, port);
                 _udpService.DataReceived += OnGeneralUdpDataReceived;
-
-                _udpServiceGase.Initialize(gaseLocalIp, gaseMulticastIp, gasePort, gaseHeader);
-                _udpServiceGase.StructuredDataReceived += OnGaseUdpDataReceived;
-
                 UpdateConnectionStatus();
             }
             catch (Exception ex)
@@ -182,64 +180,14 @@ namespace EngineDA.ViewModels
             }
         }
 
-        private void OnGaseUdpDataReceived(object? sender, UDPValues e)
-        {
-            Application.Current?.Dispatcher.InvokeAsync(() =>
-            {
-                foreach (var sensor in Sensors)
-                {
-                    if (!_specialSensors.Contains(sensor.Name)) continue;
-
-                    ApplySpecialFormula(sensor, e);
-                    CheckSensorAbnormal(sensor);
-                }
-
-                NotifyDataUpdated();
-            }, DispatcherPriority.DataBind);
-        }
-
         private void OnGeneralUdpDataReceived(object? sender, short[] data)
         {
-            Application.Current?.Dispatcher.InvokeAsync(() =>
-            {
-                foreach (var sensor in Sensors)
-                {
-                    if (_specialSensors.Contains(sensor.Name)) continue;
-                    if (sensor.Channel < 0 || sensor.Channel >= data.Length) continue;
-
-                    sensor.RawVoltage = data[sensor.Channel] / 1000f;
-                    CheckSensorAbnormal(sensor);
-                }
-
-                NotifyDataUpdated();
-            }, DispatcherPriority.DataBind);
-        }
-
-        private void ApplySpecialFormula(SensorDisplay sensor, UDPValues e)
-        {
-            const float factor = 0.000579f;
-            const float offset = 4f;
-
-            switch (sensor.Name)
-            {
-                case "Gpb3":
-                    if (e.AI_value?.Length > 30) sensor.RawVoltage = e.AI_value[30] * factor + offset;
-                    break;
-                case "Gpb8":
-                    if (e.AI_value?.Length > 35) sensor.RawVoltage = e.AI_value[35] * factor + offset;
-                    break;
-                case "Cpb15":
-                    if (e.AI_value?.Length > 66) sensor.RawVoltage = e.AI_value[66] * factor + offset;
-                    break;
-                case "Cpb17":
-                    if (e.AI_value?.Length > 69) sensor.RawVoltage = e.AI_value[69] * factor + offset;
-                    break;
-            }
+            _latestUdpData = data;
         }
 
         private void CheckSensorAbnormal(SensorDisplay sensor)
         {
-            sensor.IsAbnormal = sensor.RawVoltage < sensor.Min || sensor.RawVoltage > sensor.Max;
+            sensor.IsAbnormal = false;
         }
 
         private void NotifyDataUpdated()
@@ -266,18 +214,32 @@ namespace EngineDA.ViewModels
 
         private void LoadSensorConfigs()
         {
+            foreach (var sensor in Sensors)
+            {
+                sensor.PropertyChanged -= Sensor_PropertyChanged;
+            }
+
             Sensors.Clear();
 
             var configs = _configService.LoadConfigs("发动机");
             foreach (var cfg in configs)
             {
                 if (cfg.Name == "备用") continue;
-                Sensors.Add(MapConfigToSensor(cfg));
+                var newSensor = MapConfigToSensor(cfg);
+                newSensor.PropertyChanged += Sensor_PropertyChanged;
+                Sensors.Add(newSensor);
             }
-            AddHardcodedSensor("Gpb3", 30, "MPa", 4, 20, 0.625, -2.5);
-            AddHardcodedSensor("Gpb8", 35, "MPa", 4, 20, 1.0, -4.0);
-            AddHardcodedSensor("Cpb15", 66, "MPa", 4, 20, 1.5625, -6.25);
-            AddHardcodedSensor("Cpb17", 69, "MPa", 4, 20, 1.5625, -6.25);
+        }
+
+        private void Sensor_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(SensorDisplay.IsImportant))
+            {
+                Application.Current?.Dispatcher.InvokeAsync(() =>
+                {
+                    _filteredSensorsView?.Refresh();
+                }, DispatcherPriority.Background);
+            }
         }
 
         private SensorDisplay MapConfigToSensor(SensorConfig cfg)
@@ -294,23 +256,7 @@ namespace EngineDA.ViewModels
                 RawVoltage = 0,
                 Color = cfg.Color,
                 IsImportant = cfg.IsImportant,
-
             };
-        }
-
-        private void AddHardcodedSensor(string name, int channel, string unit, double min, double max, double k, double b)
-        {
-            Sensors.Add(new SensorDisplay
-            {
-                Name = name,
-                Channel = channel,
-                Unit = unit,
-                Min = min,
-                Max = max,
-                Kvalue = k,
-                Bvalue = b,
-                RawVoltage = 0
-            });
         }
 
         #endregion
@@ -332,7 +278,7 @@ namespace EngineDA.ViewModels
                 _udpService = null;
                 _udpServiceGase = null;
             }
-            catch { /* 忽略停止时的错误 */ }
+            catch {}
 
             _isDisposed = true;
         }

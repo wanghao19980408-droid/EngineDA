@@ -3,7 +3,8 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:ScottPlot="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.WPF"
-    Background="#1E1E24">
+    Background="#1E1E24"
+    FontFamily="Microsoft YaHei, Segoe UI">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -30,7 +31,9 @@
                     Width="150"
                     Height="30"
                     VerticalAlignment="Center"
-                    DisplayMemberPath="Name" />
+                    DisplayMemberPath="Name"
+                    VirtualizingPanel.IsVirtualizing="True"
+                    VirtualizingPanel.VirtualizationMode="Recycling" />
 
                 <Button
                     x:Name="BtnChangeColor"

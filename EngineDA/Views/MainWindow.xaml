@@ -327,18 +327,7 @@
                     CornerRadius="8">
                     <Grid x:Name="MainContentGrid">
                         <Grid x:Name="TrendsPageGrid" Visibility="Collapsed">
-                            <DockPanel Margin="8" LastChildFill="True">
-                                <StackPanel
-                                    Margin="0,0,0,8"
-                                    DockPanel.Dock="Top"
-                                    Orientation="Horizontal" />
-                                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                                    <WrapPanel
-                                        x:Name="TrendsContainer"
-                                        Margin="8"
-                                        Orientation="Horizontal" />
-                                </ScrollViewer>
-                            </DockPanel>
+                            <Grid x:Name="TrendsContainer" Margin="8" />
                         </Grid>
                     </Grid>
                 </Border>
