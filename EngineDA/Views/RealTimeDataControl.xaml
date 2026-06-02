@@ -4,7 +4,6 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:vwp="clr-namespace:WpfToolkit.Controls;assembly=VirtualizingWrapPanel"
     Background="#1E1E24"
     mc:Ignorable="d">
 
@@ -89,12 +88,7 @@
             HorizontalScrollBarVisibility="Disabled"
             VerticalScrollBarVisibility="Auto">
 
-            <ItemsControl
-                ItemsSource="{Binding FilteredSensorsView}"
-                ScrollViewer.CanContentScroll="True"
-                VirtualizingPanel.IsVirtualizing="True"
-                VirtualizingPanel.IsVirtualizingWhenGrouping="True"
-                VirtualizingPanel.VirtualizationMode="Recycling">
+            <ItemsControl ItemsSource="{Binding FilteredSensorsView}">
 
                 <ItemsControl.GroupStyle>
                     <GroupStyle>
@@ -130,19 +124,9 @@
                     </GroupStyle>
                 </ItemsControl.GroupStyle>
 
-                <ItemsControl.Template>
-                    <ControlTemplate TargetType="ItemsControl">
-                        <ItemsPresenter />
-                    </ControlTemplate>
-                </ItemsControl.Template>
-
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <vwp:VirtualizingWrapPanel
-                            Margin="0"
-                            Orientation="Horizontal"
-                            SpacingMode="None"
-                            StretchItems="False" />
+                        <WrapPanel Orientation="Horizontal" />
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
 
@@ -190,15 +174,91 @@
                                         </Style>
                                     </Border.Style>
 
-                                    <DockPanel Margin="12,0">
+                                    <Grid Margin="12,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!--  1. 左侧：传感器名称  -->
+                                        <TextBlock
+                                            Grid.Column="0"
+                                            Margin="0,0,10,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="18"
+                                            FontWeight="Bold"
+                                            Foreground="White"
+                                            Text="{Binding Name}"
+                                            TextTrimming="CharacterEllipsis" />
+
+                                        <!--  2. 中间：前移、后移微调按钮组 (已移除 ToolTip)  -->
+                                        <StackPanel
+                                            Grid.Column="1"
+                                            Margin="0,0,8,0"
+                                            VerticalAlignment="Center"
+                                            Orientation="Horizontal">
+                                            <StackPanel.Style>
+                                                <Style TargetType="StackPanel">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsImportant}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </StackPanel.Style>
+
+                                            <!--  前移按钮  -->
+                                            <Button
+                                                Width="26"
+                                                Height="26"
+                                                Margin="0,0,5,0"
+                                                Background="#33FFFFFF"
+                                                BorderThickness="0"
+                                                Command="{Binding DataContext.MoveCardUpCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}"
+                                                Content="◀"
+                                                Cursor="Hand"
+                                                FontSize="12"
+                                                FontWeight="Bold"
+                                                Foreground="White">
+                                                <Button.Resources>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="CornerRadius" Value="13" />
+                                                    </Style>
+                                                </Button.Resources>
+                                            </Button>
+
+                                            <!--  后移按钮  -->
+                                            <Button
+                                                Width="26"
+                                                Height="26"
+                                                Background="#33FFFFFF"
+                                                BorderThickness="0"
+                                                Command="{Binding DataContext.MoveCardDownCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}"
+                                                Content="▶"
+                                                Cursor="Hand"
+                                                FontSize="12"
+                                                FontWeight="Bold"
+                                                Foreground="White">
+                                                <Button.Resources>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="CornerRadius" Value="13" />
+                                                    </Style>
+                                                </Button.Resources>
+                                            </Button>
+                                        </StackPanel>
+
+                                        <!--  3. 右侧：关注五角星 ToggleButton (已移除 ToolTip)  -->
                                         <ToggleButton
-                                            Margin="5,-2,-5,0"
+                                            Grid.Column="2"
+                                            Margin="0,-2,-5,0"
                                             Background="Transparent"
                                             BorderThickness="0"
                                             Cursor="Hand"
-                                            DockPanel.Dock="Right"
-                                            IsChecked="{Binding IsImportant}"
-                                            ToolTip="设为重要监测点">
+                                            IsChecked="{Binding IsImportant}">
                                             <ToggleButton.Style>
                                                 <Style TargetType="ToggleButton">
                                                     <Setter Property="Content" Value="☆" />
@@ -228,15 +288,7 @@
                                                 </Style>
                                             </ToggleButton.Style>
                                         </ToggleButton>
-
-                                        <TextBlock
-                                            VerticalAlignment="Center"
-                                            FontSize="18"
-                                            FontWeight="Bold"
-                                            Foreground="White"
-                                            Text="{Binding Name}"
-                                            TextTrimming="CharacterEllipsis" />
-                                    </DockPanel>
+                                    </Grid>
                                 </Border>
 
                                 <Viewbox

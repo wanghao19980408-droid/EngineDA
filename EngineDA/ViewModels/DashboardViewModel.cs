@@ -36,7 +36,6 @@ namespace EngineDA.ViewModels
         private DispatcherTimer? _clockTimer;
 
         private bool _isDisposed = false;
-
         private short[]? _latestUdpData;
         #endregion
 
@@ -52,7 +51,6 @@ namespace EngineDA.ViewModels
 
         [ObservableProperty]
         private string currentTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-
 
         public string ConnectionStatusText => IsConnected ? "已连接" : "未连接";
         public Brush ConnectionStatusColor => IsConnected ? Brushes.LimeGreen : Brushes.Red;
@@ -80,6 +78,14 @@ namespace EngineDA.ViewModels
                     r._filteredSensorsView?.Refresh();
                 });
             });
+
+            WeakReferenceMessenger.Default.Register<DashboardViewModel, CommConfigChangedMessage>(this, (r, m) =>
+            {
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    r.RestartUdp();
+                });
+            });
         }
 
         private void SetupGrouping()
@@ -91,8 +97,20 @@ namespace EngineDA.ViewModels
 
             _filteredSensorsView.SortDescriptions.Clear();
             _filteredSensorsView.SortDescriptions.Add(new SortDescription("IsImportant", ListSortDirection.Descending));
+            _filteredSensorsView.SortDescriptions.Add(new SortDescription("OrderIndex", ListSortDirection.Ascending));
             _filteredSensorsView.SortDescriptions.Add(new SortDescription("Unit", ListSortDirection.Ascending));
             _filteredSensorsView.SortDescriptions.Add(new SortDescription("Channel", ListSortDirection.Ascending));
+
+            // 【核心修改】开启 LiveSorting 实时平滑排序，彻底解决卡顿问题
+            if (_filteredSensorsView is ICollectionViewLiveShaping liveView && liveView.CanChangeLiveSorting)
+            {
+                liveView.LiveSortingProperties.Add(nameof(SensorDisplay.IsImportant));
+                liveView.LiveSortingProperties.Add(nameof(SensorDisplay.OrderIndex));
+                liveView.IsLiveSorting = true;
+
+                liveView.LiveGroupingProperties.Add(nameof(SensorDisplay.DisplayGroup));
+                liveView.IsLiveGrouping = true;
+            }
         }
 
         private void StartTimers()
@@ -101,7 +119,7 @@ namespace EngineDA.ViewModels
             _clockTimer.Tick += (_, _) => CurrentTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             _clockTimer.Start();
 
-            _uiRefreshTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(50) };
+            _uiRefreshTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(100) };
             _uiRefreshTimer.Tick += UiRefreshTimer_Tick;
             _uiRefreshTimer.Start();
         }
@@ -147,6 +165,65 @@ namespace EngineDA.ViewModels
             return true;
         }
 
+        // ================= 新增：卡片左移/右移排序逻辑 =================
+        [RelayCommand]
+        private void MoveCardUp(SensorDisplay currentSensor)
+        {
+            if (currentSensor == null || !currentSensor.IsImportant) return;
+
+            var importantSensors = Sensors.Where(s => s.IsImportant)
+                                          .OrderBy(s => s.OrderIndex)
+                                          .ThenBy(s => s.Channel)
+                                          .ToList();
+
+            int index = importantSensors.IndexOf(currentSensor);
+            if (index > 0)
+            {
+                var previousSensor = importantSensors[index - 1];
+
+                // 原地互换次序
+                int temp = currentSensor.OrderIndex;
+                currentSensor.OrderIndex = previousSensor.OrderIndex;
+                previousSensor.OrderIndex = temp;
+
+                // 防止因脏数据导致序号相同
+                if (currentSensor.OrderIndex == previousSensor.OrderIndex)
+                {
+                    previousSensor.OrderIndex = index;
+                    currentSensor.OrderIndex = index - 1;
+                }
+                // 注意：这里不需要调用 Refresh()，因为我们开启了 LiveSorting，UI会自动平滑过渡
+            }
+        }
+
+        [RelayCommand]
+        private void MoveCardDown(SensorDisplay currentSensor)
+        {
+            if (currentSensor == null || !currentSensor.IsImportant) return;
+
+            var importantSensors = Sensors.Where(s => s.IsImportant)
+                                          .OrderBy(s => s.OrderIndex)
+                                          .ThenBy(s => s.Channel)
+                                          .ToList();
+
+            int index = importantSensors.IndexOf(currentSensor);
+            if (index >= 0 && index < importantSensors.Count - 1)
+            {
+                var nextSensor = importantSensors[index + 1];
+
+                int temp = currentSensor.OrderIndex;
+                currentSensor.OrderIndex = nextSensor.OrderIndex;
+                nextSensor.OrderIndex = temp;
+
+                if (currentSensor.OrderIndex == nextSensor.OrderIndex)
+                {
+                    nextSensor.OrderIndex = index;
+                    currentSensor.OrderIndex = index + 1;
+                }
+            }
+        }
+        // ==========================================================
+
         #endregion
 
         #region UDP 通信逻辑
@@ -171,6 +248,25 @@ namespace EngineDA.ViewModels
             catch (Exception ex)
             {
                 Debug.WriteLine($"UDP Init Error: {ex.Message}");
+            }
+        }
+
+        public void RestartUdp()
+        {
+            try
+            {
+                if (_udpService != null)
+                {
+                    _udpService.DataReceived -= OnGeneralUdpDataReceived;
+                    _udpService.Stop();
+                    _udpService = null;
+                }
+                IsConnected = false;
+                InitializeUdp();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Restart UDP Error: {ex.Message}");
             }
         }
 
@@ -214,12 +310,14 @@ namespace EngineDA.ViewModels
             }
 
             Sensors.Clear();
+            int initialOrder = 0;
 
             var configs = _configService.LoadConfigs("发动机");
             foreach (var cfg in configs)
             {
                 if (cfg.Name == "备用") continue;
                 var newSensor = MapConfigToSensor(cfg);
+                newSensor.OrderIndex = initialOrder++;
                 newSensor.PropertyChanged += Sensor_PropertyChanged;
                 Sensors.Add(newSensor);
             }
@@ -227,13 +325,6 @@ namespace EngineDA.ViewModels
 
         private void Sensor_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(SensorDisplay.IsImportant))
-            {
-                Application.Current?.Dispatcher.InvokeAsync(() =>
-                {
-                    _filteredSensorsView?.Refresh();
-                }, DispatcherPriority.Background);
-            }
         }
 
         private SensorDisplay MapConfigToSensor(SensorConfig cfg)
@@ -270,7 +361,7 @@ namespace EngineDA.ViewModels
                 _udpService?.Stop();
                 _udpService = null;
             }
-            catch {}
+            catch { }
 
             _isDisposed = true;
         }

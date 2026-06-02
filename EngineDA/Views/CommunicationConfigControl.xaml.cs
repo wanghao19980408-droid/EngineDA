@@ -1,4 +1,6 @@
 ﻿using EngineDA.Helpers;
+using EngineDA.Models;
+using CommunityToolkit.Mvvm.Messaging;
 using System;
 using System.Windows;
 using System.Windows.Input;
@@ -35,7 +37,7 @@ namespace EngineDA.Views
 
         private void BtnSave_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new Views.ConfirmDialog("确定要保存当前配置吗？(重启软件后生效)");
+            var dialog = new Views.ConfirmDialog("确定要保存当前配置并重新连接网络吗？");
             dialog.ShowDialog();
 
             if (dialog.Result)
@@ -47,7 +49,9 @@ namespace EngineDA.Views
 
                     Close();
 
-                    var successDialog = new Views.ConfirmDialog("通信配置保存成功！请重启软件以生效。");
+                    WeakReferenceMessenger.Default.Send(new CommConfigChangedMessage());
+
+                    var successDialog = new Views.ConfirmDialog("通信配置保存成功，正在重新连接！");
                     successDialog.ShowDialog();
                 }
                 catch (Exception ex)

@@ -18,8 +18,9 @@ namespace EngineDA.Views
         private DashboardViewModel? _dashboardVM;
         private readonly Dictionary<int, ActiveChannel> _activeChannels = new();
 
-        private Crosshair _crosshair;
-        private Annotation _tooltipAnnotation;
+        private ScottPlot.WPF.WpfPlot[] _plots;
+        private Crosshair[] _crosshairs;
+        private Annotation[] _tooltipAnnotations;
 
         private DispatcherTimer _uiTimer;
         private bool _isAutoY = true;
@@ -47,7 +48,11 @@ namespace EngineDA.Views
                 if (sortedSensors.Count > 0) CmbSensors.SelectedIndex = 0;
             }
 
-            SetupPlot();
+            _plots = new[] { WpfPlot1, WpfPlot2, WpfPlot3, WpfPlot4 };
+            _crosshairs = new Crosshair[4];
+            _tooltipAnnotations = new Annotation[4];
+
+            SetupPlots();
 
             _uiTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(50) };
             _uiTimer.Tick += UiTimer_Tick;
@@ -59,41 +64,46 @@ namespace EngineDA.Views
             _uiTimer?.Stop();
         }
 
-        private void SetupPlot()
+        private void SetupPlots()
         {
-            WpfPlot1.Plot.FigureBackground.Color = ScottPlot.Color.FromHex("#1E1E24");
-            WpfPlot1.Plot.DataBackground.Color = ScottPlot.Color.FromHex("#1E1E24");
-            WpfPlot1.Plot.Grid.MajorLineColor = ScottPlot.Color.FromHex("#33333C");
-
-            WpfPlot1.Plot.Axes.Bottom.TickLabelStyle.FontName = "微软雅黑";
-            WpfPlot1.Plot.Axes.Bottom.TickLabelStyle.ForeColor = ScottPlot.Colors.LightGray;
-            WpfPlot1.Plot.Axes.Left.TickLabelStyle.FontName = "微软雅黑";
-            WpfPlot1.Plot.Axes.Left.TickLabelStyle.ForeColor = ScottPlot.Colors.LightGray;
-
-            var timeTickGen = new ScottPlot.TickGenerators.NumericAutomatic();
-            timeTickGen.LabelFormatter = (double x) =>
+            for (int i = 0; i < _plots.Length; i++)
             {
-                try { if (x > 0) return DateTime.FromOADate(x).ToString("HH:mm:ss"); } catch { }
-                return "";
-            };
-            WpfPlot1.Plot.Axes.Bottom.TickGenerator = timeTickGen;
+                var plot = _plots[i];
+                plot.Plot.FigureBackground.Color = ScottPlot.Color.FromHex("#1E1E24");
+                plot.Plot.DataBackground.Color = ScottPlot.Color.FromHex("#1E1E24");
+                plot.Plot.Grid.MajorLineColor = ScottPlot.Color.FromHex("#33333C");
 
-            _crosshair = WpfPlot1.Plot.Add.Crosshair(0, 0);
-            _crosshair.LineColor = ScottPlot.Colors.Yellow;
-            _crosshair.IsVisible = false;
+                plot.Plot.Axes.Bottom.TickLabelStyle.FontName = "微软雅黑";
+                plot.Plot.Axes.Bottom.TickLabelStyle.ForeColor = ScottPlot.Colors.LightGray;
+                plot.Plot.Axes.Left.TickLabelStyle.FontName = "微软雅黑";
+                plot.Plot.Axes.Left.TickLabelStyle.ForeColor = ScottPlot.Colors.LightGray;
 
-            _tooltipAnnotation = WpfPlot1.Plot.Add.Annotation("");
-            _tooltipAnnotation.LabelFontSize = 14;
-            _tooltipAnnotation.LabelFontName = "微软雅黑";
-            _tooltipAnnotation.LabelBackgroundColor = ScottPlot.Color.FromHex("#D9141414");
-            _tooltipAnnotation.LabelFontColor = ScottPlot.Colors.White;
-            _tooltipAnnotation.LabelBorderColor = ScottPlot.Colors.Yellow;
-            _tooltipAnnotation.IsVisible = false;
+                var timeTickGen = new ScottPlot.TickGenerators.NumericAutomatic();
+                timeTickGen.LabelFormatter = (double x) =>
+                {
+                    try { if (x > 0) return DateTime.FromOADate(x).ToString("HH:mm:ss"); } catch { }
+                    return "";
+                };
+                plot.Plot.Axes.Bottom.TickGenerator = timeTickGen;
 
-            WpfPlot1.MouseMove += WpfPlot1_MouseMove;
-            WpfPlot1.MouseLeave += (s, e) => { _crosshair.IsVisible = false; _tooltipAnnotation.IsVisible = false; WpfPlot1.Refresh(); };
-            WpfPlot1.MouseUp += (s, e) => { if (_isFrozen && _isAutoY) AutoFitY(true); };
-            WpfPlot1.MouseWheel += (s, e) => { if (_isFrozen && _isAutoY) AutoFitY(true); };
+                _crosshairs[i] = plot.Plot.Add.Crosshair(0, 0);
+                _crosshairs[i].LineColor = ScottPlot.Colors.Yellow;
+                _crosshairs[i].IsVisible = false;
+
+                _tooltipAnnotations[i] = plot.Plot.Add.Annotation("");
+                _tooltipAnnotations[i].LabelFontSize = 14;
+                _tooltipAnnotations[i].LabelFontName = "微软雅黑";
+                _tooltipAnnotations[i].LabelBackgroundColor = ScottPlot.Color.FromHex("#D9141414");
+                _tooltipAnnotations[i].LabelFontColor = ScottPlot.Colors.White;
+                _tooltipAnnotations[i].LabelBorderColor = ScottPlot.Colors.Yellow;
+                _tooltipAnnotations[i].IsVisible = false;
+
+                int plotIndex = i; // 闭包捕获
+                plot.MouseMove += (s, e) => Plot_MouseMove(s, e, plotIndex);
+                plot.MouseLeave += (s, e) => { _crosshairs[plotIndex].IsVisible = false; _tooltipAnnotations[plotIndex].IsVisible = false; plot.Refresh(); };
+                plot.MouseUp += (s, e) => { if (_isFrozen && _isAutoY) AutoFitY(true); };
+                plot.MouseWheel += (s, e) => { if (_isFrozen && _isAutoY) AutoFitY(true); };
+            }
         }
 
         private void UiTimer_Tick(object? sender, EventArgs e)
@@ -131,85 +141,103 @@ namespace EngineDA.Views
                 }
             }
 
-            WpfPlot1.Plot.Axes.SetLimitsX(currentNowOA - windowDays, currentNowOA);
+            // 更新所有图表的时间轴
+            foreach (var plot in _plots)
+            {
+                plot.Plot.Axes.SetLimitsX(currentNowOA - windowDays, currentNowOA);
+            }
 
             if (_isAutoY && _renderTickCount % 10 == 0)
             {
                 AutoFitY(false);
             }
 
-            WpfPlot1.Refresh();
+            foreach (var plot in _plots)
+            {
+                plot.Refresh();
+            }
         }
 
         private void AutoFitY(bool force)
         {
-            var limits = WpfPlot1.Plot.Axes.GetLimits();
-            double minX = limits.Left;
-            double maxX = limits.Right;
-
-            double minY = double.MaxValue;
-            double maxY = double.MinValue;
-            bool found = false;
-
-            foreach (var ch in _activeChannels.Values)
+            foreach (var plot in _plots)
             {
-                for (int i = ch.History.Count - 1; i >= 0; i--)
-                {
-                    var p = ch.History[i];
-                    if (p.TimeOA < minX) break;
+                var limits = plot.Plot.Axes.GetLimits();
+                double minX = limits.Left;
+                double maxX = limits.Right;
 
-                    if (p.TimeOA <= maxX)
+                double minY = double.MaxValue;
+                double maxY = double.MinValue;
+                bool found = false;
+
+                // 仅自适应挂载在当前 plot 上的频道
+                var channelsOnPlot = _activeChannels.Values.Where(c => c.ParentPlot == plot);
+
+                foreach (var ch in channelsOnPlot)
+                {
+                    for (int i = ch.History.Count - 1; i >= 0; i--)
                     {
-                        if (p.Value < minY) minY = p.Value;
-                        if (p.Value > maxY) maxY = p.Value;
-                        found = true;
+                        var p = ch.History[i];
+                        if (p.TimeOA < minX) break;
+
+                        if (p.TimeOA <= maxX)
+                        {
+                            if (p.Value < minY) minY = p.Value;
+                            if (p.Value > maxY) maxY = p.Value;
+                            found = true;
+                        }
                     }
                 }
-            }
 
-            if (found)
-            {
-                double padding = (maxY - minY) * 0.1;
-                if (padding == 0) padding = 1.0;
-
-                double currentYMin = limits.Bottom;
-                double currentYMax = limits.Top;
-
-                bool needsUpdate = force ||
-                                   (minY - padding < currentYMin) ||
-                                   (maxY + padding > currentYMax) ||
-                                   (currentYMax - currentYMin > (maxY - minY + padding * 2) * 1.5);
-
-                if (needsUpdate)
+                if (found)
                 {
-                    WpfPlot1.Plot.Axes.SetLimitsY(minY - padding, maxY + padding);
+                    double padding = (maxY - minY) * 0.1;
+                    if (padding == 0) padding = 1.0;
+
+                    double currentYMin = limits.Bottom;
+                    double currentYMax = limits.Top;
+
+                    bool needsUpdate = force ||
+                                       (minY - padding < currentYMin) ||
+                                       (maxY + padding > currentYMax) ||
+                                       (currentYMax - currentYMin > (maxY - minY + padding * 2) * 1.5);
+
+                    if (needsUpdate)
+                    {
+                        plot.Plot.Axes.SetLimitsY(minY - padding, maxY + padding);
+                    }
                 }
             }
         }
 
-        private void WpfPlot1_MouseMove(object sender, MouseEventArgs e)
+        private void Plot_MouseMove(object sender, MouseEventArgs e, int plotIndex)
         {
             if (_activeChannels.Count == 0) return;
 
-            Point position = e.GetPosition(WpfPlot1);
+            var currentPlot = _plots[plotIndex];
+            var currentCrosshair = _crosshairs[plotIndex];
+            var currentAnnotation = _tooltipAnnotations[plotIndex];
 
+            Point position = e.GetPosition(currentPlot);
             var dpi = VisualTreeHelper.GetDpi(this);
             float scaledX = (float)(position.X * dpi.DpiScaleX);
             float scaledY = (float)(position.Y * dpi.DpiScaleY);
 
             Pixel mousePixel = new Pixel(scaledX, scaledY);
-            Coordinates mouseLocation = WpfPlot1.Plot.GetCoordinates(mousePixel);
+            Coordinates mouseLocation = currentPlot.Plot.GetCoordinates(mousePixel);
 
             double mouseTimeOA = mouseLocation.X;
 
-            _crosshair.Position = new Coordinates(mouseLocation.X, mouseLocation.Y);
-            _crosshair.IsVisible = true;
+            currentCrosshair.Position = new Coordinates(mouseLocation.X, mouseLocation.Y);
+            currentCrosshair.IsVisible = true;
 
             bool hasData = false;
             double closestTimeOA = 0;
             string tooltipText = "";
 
-            foreach (var ch in _activeChannels.Values)
+            var channelsOnPlot = _activeChannels.Values.Where(c => c.ParentPlot == currentPlot);
+
+            foreach (var ch in channelsOnPlot)
             {
                 if (ch.History.Count == 0) continue;
 
@@ -231,20 +259,20 @@ namespace EngineDA.Views
             if (hasData)
             {
                 DateTime ptTime = DateTime.FromOADate(closestTimeOA);
-                _tooltipAnnotation.Text = $"时间: {ptTime:HH:mm:ss.fff}\n---------------------\n{tooltipText.Trim()}";
+                currentAnnotation.Text = $"时间: {ptTime:HH:mm:ss.fff}\n---------------------\n{tooltipText.Trim()}";
 
-                _tooltipAnnotation.OffsetX = (float)(position.X > WpfPlot1.ActualWidth - 150 ? position.X - 160 : position.X + 15);
-                _tooltipAnnotation.OffsetY = (float)(position.Y + 15);
-                _tooltipAnnotation.IsVisible = true;
+                currentAnnotation.OffsetX = (float)(position.X > currentPlot.ActualWidth - 150 ? position.X - 160 : position.X + 15);
+                currentAnnotation.OffsetY = (float)(position.Y + 15);
+                currentAnnotation.IsVisible = true;
 
-                _crosshair.Position = new Coordinates(closestTimeOA, mouseLocation.Y);
-                _crosshair.IsVisible = true;
+                currentCrosshair.Position = new Coordinates(closestTimeOA, mouseLocation.Y);
+                currentCrosshair.IsVisible = true;
             }
             else
             {
-                _tooltipAnnotation.IsVisible = false;
-                _crosshair.Position = new Coordinates(mouseLocation.X, mouseLocation.Y);
-                _crosshair.IsVisible = true;
+                currentAnnotation.IsVisible = false;
+                currentCrosshair.Position = new Coordinates(mouseLocation.X, mouseLocation.Y);
+                currentCrosshair.IsVisible = true;
             }
 
             if (_isFrozen)
@@ -252,7 +280,7 @@ namespace EngineDA.Views
                 long now = Environment.TickCount64;
                 if (now - _lastMouseMoveRender > 30)
                 {
-                    WpfPlot1.Refresh();
+                    currentPlot.Refresh();
                     _lastMouseMoveRender = now;
                 }
             }
@@ -299,15 +327,20 @@ namespace EngineDA.Views
             {
                 if (_activeChannels.ContainsKey(selectedSensor.Channel)) return;
 
+                int targetPlotIndex = CmbTargetPlot.SelectedIndex;
+                if (targetPlotIndex < 0 || targetPlotIndex >= _plots.Length) targetPlotIndex = 0;
+
+                var targetPlot = _plots[targetPlotIndex];
+
                 var brush = (SolidColorBrush)BtnChangeColor.Background;
                 var sColor = new ScottPlot.Color(brush.Color.R, brush.Color.G, brush.Color.B);
 
-                var logger = WpfPlot1.Plot.Add.DataLogger();
+                var logger = targetPlot.Plot.Add.DataLogger();
                 logger.Color = sColor;
                 logger.LineStyle.Width = 1.5f;
                 logger.ManageAxisLimits = false;
 
-                var channel = new ActiveChannel(selectedSensor, logger, brush, RemoveSingleChannel);
+                var channel = new ActiveChannel(selectedSensor, logger, brush, targetPlot, targetPlotIndex + 1, RemoveSingleChannel);
                 _activeChannels.Add(selectedSensor.Channel, channel);
 
                 InfoPanel.Children.Add(channel.UIPanel);
@@ -318,10 +351,10 @@ namespace EngineDA.Views
         {
             if (channel == null) return;
 
-            WpfPlot1.Plot.Remove(channel.Logger);
+            channel.ParentPlot.Plot.Remove(channel.Logger);
             InfoPanel.Children.Remove(channel.UIPanel);
             _activeChannels.Remove(channel.Config.Channel);
-            WpfPlot1.Refresh();
+            channel.ParentPlot.Refresh();
         }
 
         private void BtnAutoY_Click(object sender, RoutedEventArgs e)
@@ -332,7 +365,7 @@ namespace EngineDA.Views
             if (_isAutoY && _isFrozen)
             {
                 AutoFitY(true);
-                WpfPlot1.Refresh();
+                foreach (var plot in _plots) plot.Refresh();
             }
         }
 
@@ -348,11 +381,11 @@ namespace EngineDA.Views
         {
             foreach (var ch in _activeChannels.Values)
             {
-                WpfPlot1.Plot.Remove(ch.Logger);
+                ch.ParentPlot.Plot.Remove(ch.Logger);
                 InfoPanel.Children.Remove(ch.UIPanel);
             }
             _activeChannels.Clear();
-            WpfPlot1.Refresh();
+            foreach (var plot in _plots) plot.Refresh();
         }
 
         #endregion
@@ -361,17 +394,21 @@ namespace EngineDA.Views
         {
             public SensorDisplay Config { get; }
             public DataLogger Logger { get; }
+            public ScottPlot.WPF.WpfPlot ParentPlot { get; }
             public List<(double TimeOA, double Value)> History { get; } = new();
             public Border UIPanel { get; }
             private TextBlock InfoText { get; }
+            private int PlotIndex { get; }
 
             public double PeakMax { get; set; } = double.MinValue;
             public double PeakMin { get; set; } = double.MaxValue;
 
-            public ActiveChannel(SensorDisplay config, DataLogger logger, SolidColorBrush color, Action<ActiveChannel> onDelete)
+            public ActiveChannel(SensorDisplay config, DataLogger logger, SolidColorBrush color, ScottPlot.WPF.WpfPlot parentPlot, int plotIndex, Action<ActiveChannel> onDelete)
             {
                 Config = config;
                 Logger = logger;
+                ParentPlot = parentPlot;
+                PlotIndex = plotIndex;
 
                 UIPanel = new Border
                 {
@@ -411,7 +448,7 @@ namespace EngineDA.Views
                     FontFamily = new FontFamily("Microsoft YaHei, Segoe UI"),
                     FontSize = 13,
                     LineHeight = 20,
-                    Text = $"[{config.Channel}] {config.Name}\n 当前: --\n 峰值: --\n 谷底: --\n 原始: -- V"
+                    Text = $"[图表{PlotIndex}] [{config.Channel}] {config.Name}\n 当前: --\n 峰值: --\n 谷底: --\n 原始: -- V"
                 };
 
                 Grid.SetColumn(InfoText, 0);
@@ -422,7 +459,7 @@ namespace EngineDA.Views
 
             public void UpdateLabelUI(double physVal, double rawVal)
             {
-                InfoText.Text = $"[{Config.Channel}] {Config.Name}\n 当前: {physVal:F3} {Config.Unit}\n 峰值: {PeakMax:F3}\n 谷底: {PeakMin:F3}\n 原始: {rawVal:F3} V";
+                InfoText.Text = $"[图表{PlotIndex}] [{Config.Channel}] {Config.Name}\n 当前: {physVal:F3} {Config.Unit}\n 峰值: {PeakMax:F3}\n 谷底: {PeakMin:F3}\n 原始: {rawVal:F3} V";
             }
         }
     }

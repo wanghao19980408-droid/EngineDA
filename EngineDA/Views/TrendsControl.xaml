@@ -45,6 +45,25 @@
                     Cursor="Hand"
                     ToolTip="点击更换颜色" />
 
+                <TextBlock
+                    Margin="15,0,10,0"
+                    VerticalAlignment="Center"
+                    FontSize="14"
+                    FontWeight="Bold"
+                    Foreground="White"
+                    Text="目标视图:" />
+                <ComboBox
+                    x:Name="CmbTargetPlot"
+                    Width="80"
+                    Height="30"
+                    VerticalAlignment="Center"
+                    SelectedIndex="0">
+                    <ComboBoxItem Content="图表 1" />
+                    <ComboBoxItem Content="图表 2" />
+                    <ComboBoxItem Content="图表 3" />
+                    <ComboBoxItem Content="图表 4" />
+                </ComboBox>
+
                 <Button
                     x:Name="BtnAdd"
                     Width="80"
@@ -104,10 +123,37 @@
                 <ColumnDefinition Width="250" />
             </Grid.ColumnDefinitions>
 
-            <ScottPlot:WpfPlot
-                x:Name="WpfPlot1"
-                Grid.Column="0"
-                Margin="5" />
+            <Grid Grid.Column="0" Background="#1E1E24">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <ScottPlot:WpfPlot
+                    x:Name="WpfPlot1"
+                    Grid.Row="0"
+                    Grid.Column="0"
+                    Margin="2" />
+                <ScottPlot:WpfPlot
+                    x:Name="WpfPlot2"
+                    Grid.Row="0"
+                    Grid.Column="1"
+                    Margin="2" />
+                <ScottPlot:WpfPlot
+                    x:Name="WpfPlot3"
+                    Grid.Row="1"
+                    Grid.Column="0"
+                    Margin="2" />
+                <ScottPlot:WpfPlot
+                    x:Name="WpfPlot4"
+                    Grid.Row="1"
+                    Grid.Column="1"
+                    Margin="2" />
+            </Grid>
 
             <Border
                 Grid.Column="1"

@@ -106,7 +106,16 @@ namespace EngineDA
                 Close();
             }
         }
+        private void OpenAdvancedConfig_Click(object sender, RoutedEventArgs e)
+        {
+            var pwdDialog = new PasswordDialog();
+            pwdDialog.ShowDialog();
 
+            if (pwdDialog.IsAuthenticated)
+            {
+                new FilterConfigWindow().ShowDialog();
+            }
+        }
         private void Border_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ClickCount == 2)

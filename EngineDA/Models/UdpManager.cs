@@ -43,8 +43,8 @@ namespace EngineDA.Services
         /// 用于普通 short[] 解析的构造器
         /// </summary>
         public UDPManager(string local, string multicast, int port,
-            int processIntervalMs = 150, int maxQueueSize = 1000,
-            int maxBatchSize = 20, int maxReceivePerSecond = 50)
+                int processIntervalMs = 100, int maxQueueSize = 100,
+                int maxBatchSize = 20, int maxReceivePerSecond = 50)
         {
             LocalIP = IPAddress.Parse(local);
             MulticastAddress = IPAddress.Parse(multicast);

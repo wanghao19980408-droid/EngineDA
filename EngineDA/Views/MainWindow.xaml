@@ -313,6 +313,7 @@
                             Text="工具箱" />
                         <Button Click="OpenKBCalculator_Click" Content="计算器" />
                         <Button Click="OpenComm_Click" Content="通信配置" />
+                        <Button Click="OpenAdvancedConfig_Click" Content="高级设置" />
                     </StackPanel>
                 </Border>
 

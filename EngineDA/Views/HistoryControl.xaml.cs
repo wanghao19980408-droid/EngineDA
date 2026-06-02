@@ -167,12 +167,22 @@ namespace EngineDA.Views
             int count = data.Values.Count / numChannels;
             if (count == 0) return;
 
+            string iniPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Config.ini");
+            bool isFilterEnabled = EngineDA.Helpers.IniConfigHelper.ReadIniData("HistoryFilter", "Enabled", "False", iniPath).Equals("True", StringComparison.OrdinalIgnoreCase);
+            int windowSize = int.Parse(EngineDA.Helpers.IniConfigHelper.ReadIniData("HistoryFilter", "WindowSize", "10", iniPath));
+            int trimCount = int.Parse(EngineDA.Helpers.IniConfigHelper.ReadIniData("HistoryFilter", "TrimCount", "2", iniPath));
+
             for (int ch = 0; ch < numChannels; ch++)
             {
                 double[] vals = new double[count];
                 for (int i = 0; i < count; i++)
                 {
                     vals[i] = data.Values[i * numChannels + ch];
+                }
+
+                if (isFilterEnabled)
+                {
+                    vals = ApplyTrimmedMeanFilter(vals, windowSize, trimCount);
                 }
 
                 _channelData[startChannelOffset + ch] = new ChannelData
@@ -182,7 +192,48 @@ namespace EngineDA.Views
                 };
             }
         }
+        private double[] ApplyTrimmedMeanFilter(double[] data, int windowSize, int trimCount)
+        {
+            if (data == null || data.Length == 0) return Array.Empty<double>();
+            double[] result = new double[data.Length];
+            int halfWindow = windowSize / 2;
 
+            for (int i = 0; i < data.Length; i++)
+            {
+                int start = Math.Max(0, i - halfWindow);
+                int end = Math.Min(data.Length - 1, i + halfWindow);
+                int currentWindowSize = end - start + 1;
+
+                double[] window = new double[currentWindowSize];
+                Array.Copy(data, start, window, 0, currentWindowSize);
+                Array.Sort(window);
+
+                int currentTrim = Math.Min(trimCount, (currentWindowSize - 1) / 2);
+
+                double lowerBound = window[currentTrim];
+                double upperBound = window[currentWindowSize - 1 - currentTrim];
+
+
+                if (data[i] < lowerBound || data[i] > upperBound)
+                {
+                    double sum = 0;
+                    int count = 0;
+                    for (int j = currentTrim; j < currentWindowSize - currentTrim; j++)
+                    {
+                        sum += window[j];
+                        count++;
+                    }
+
+                    result[i] = count > 0 ? sum / count : data[i];
+                }
+                else
+                {
+                    result[i] = data[i];
+                }
+            }
+
+            return result;
+        }
         private ParsedFile ExtractAllNumbersFast(string filePath)
         {
             ParsedFile pf = new ParsedFile();

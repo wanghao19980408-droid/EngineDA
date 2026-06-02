@@ -9,6 +9,9 @@ namespace EngineDA.Models
         [ObservableProperty] private string name = "";
         [ObservableProperty] private int channel;
 
+        // 用于自定义排序的索引值
+        [ObservableProperty] private int orderIndex = 0;
+
         private string unit = "";
         public string Unit
         {
@@ -17,35 +20,12 @@ namespace EngineDA.Models
             {
                 SetProperty(ref unit, value);
                 OnPropertyChanged(nameof(DisplayGroup));
-                OnPropertyChanged(nameof(CardWidth));
-                OnPropertyChanged(nameof(CardHeight));
             }
         }
 
-        public double CardWidth
-        {
-            get
-            {
-                string u = Unit?.Trim() ?? "";
-
-                if (u == "RPM" || u == "r/min") return 290;
-
-                if (u == "℃" || u == "°C" || u == "K" || u == "L/min") return 290;
-
-                return 230;
-            }
-        }
-
-        public double CardHeight
-        {
-            get
-            {
-                string u = Unit?.Trim() ?? "";
-                if (u == "RPM" || u == "r/min") return 150;
-                if (u == "℃" || u == "°C" || u == "K" || u == "L/min") return 150;
-                return 135;
-            }
-        }
+        // 【核心修改】统一所有卡片的尺寸，彻底杜绝虚拟化面板带来的裁剪和遮挡问题
+        public double CardWidth => 255;
+        public double CardHeight => 165;
 
         [ObservableProperty] private double min;
         [ObservableProperty] private double max;
