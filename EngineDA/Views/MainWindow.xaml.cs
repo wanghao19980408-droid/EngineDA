@@ -80,7 +80,7 @@ namespace EngineDA
                 case "实时曲线":
                     TrendsPageGrid.Visibility = Visibility.Visible;
                     break;
-                case "历史数据":
+                case "实验数据":
                     historyControl.Visibility = Visibility.Visible;
                     break;
                 case "配置文件":

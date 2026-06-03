@@ -39,7 +39,7 @@
                     FontSize="20"
                     FontWeight="Bold"
                     Foreground="{DynamicResource PrimaryTextBrush}"
-                    Text="历史数据解析" />
+                    Text="实验数据解析" />
 
                 <StackPanel
                     Grid.Row="1"

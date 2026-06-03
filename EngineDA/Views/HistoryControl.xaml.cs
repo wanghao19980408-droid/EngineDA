@@ -192,6 +192,7 @@ namespace EngineDA.Views
                 };
             }
         }
+
         private double[] ApplyTrimmedMeanFilter(double[] data, int windowSize, int trimCount)
         {
             if (data == null || data.Length == 0) return Array.Empty<double>();
@@ -206,30 +207,21 @@ namespace EngineDA.Views
 
                 double[] window = new double[currentWindowSize];
                 Array.Copy(data, start, window, 0, currentWindowSize);
+
                 Array.Sort(window);
 
                 int currentTrim = Math.Min(trimCount, (currentWindowSize - 1) / 2);
 
-                double lowerBound = window[currentTrim];
-                double upperBound = window[currentWindowSize - 1 - currentTrim];
+                double sum = 0;
+                int count = 0;
 
-
-                if (data[i] < lowerBound || data[i] > upperBound)
+                for (int j = currentTrim; j < currentWindowSize - currentTrim; j++)
                 {
-                    double sum = 0;
-                    int count = 0;
-                    for (int j = currentTrim; j < currentWindowSize - currentTrim; j++)
-                    {
-                        sum += window[j];
-                        count++;
-                    }
+                    sum += window[j];
+                    count++;
+                }
 
-                    result[i] = count > 0 ? sum / count : data[i];
-                }
-                else
-                {
-                    result[i] = data[i];
-                }
+                result[i] = count > 0 ? sum / count : data[i];
             }
 
             return result;

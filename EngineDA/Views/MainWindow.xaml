@@ -297,7 +297,7 @@
                             Content="实时数据"
                             IsChecked="True" />
                         <RadioButton Checked="NavRadioButton_Checked" Content="实时曲线" />
-                        <RadioButton Checked="NavRadioButton_Checked" Content="历史数据" />
+                        <RadioButton Checked="NavRadioButton_Checked" Content="实验数据" />
 
                         <TextBlock
                             Margin="20,15,0,10"
