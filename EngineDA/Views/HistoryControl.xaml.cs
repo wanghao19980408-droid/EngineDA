@@ -4,13 +4,13 @@ using Microsoft.Win32;
 using ScottPlot;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Media;
 
 namespace EngineDA.Views
 {
@@ -26,25 +26,25 @@ namespace EngineDA.Views
         public List<double> Values = new List<double>();
     }
 
+    // 纯净的数据模型，去掉了颜色属性
+    public class CursorItem
+    {
+        public string Name { get; set; } = "";
+        public string ChannelInfo { get; set; } = "";
+        public string Value { get; set; } = "";
+    }
+
     public partial class HistoryControl : UserControl
     {
         private ChannelData[] _channelData;
         private List<SensorConfig> _sensorConfigs = new List<SensorConfig>();
-        private ScottPlot.Plottables.Crosshair _crosshair;
+        private ScottPlot.Plottables.VerticalLine _timeLine;
+        private ObservableCollection<CursorItem> _cursorItems = new ObservableCollection<CursorItem>();
 
         public HistoryControl()
         {
             InitializeComponent();
-
-            HistoryPlot.MouseMove += HistoryPlot_MouseMove;
-            HistoryPlot.MouseEnter += (s, e) => { if (_crosshair != null) _crosshair.IsVisible = true; };
-            HistoryPlot.MouseLeave += (s, e) =>
-            {
-                if (_crosshair != null) _crosshair.IsVisible = false;
-                TxtCursorData.Text = "查看各通道详细数值";
-                HistoryPlot.Refresh();
-            };
-
+            CursorDataList.ItemsSource = _cursorItems;
             AutoLoadSystemConfigs();
         }
 
@@ -169,10 +169,12 @@ namespace EngineDA.Views
 
             string iniPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Config.ini");
             bool isFilterEnabled = EngineDA.Helpers.IniConfigHelper.ReadIniData("HistoryFilter", "Enabled", "False", iniPath).Equals("True", StringComparison.OrdinalIgnoreCase);
-            int windowSize = int.Parse(EngineDA.Helpers.IniConfigHelper.ReadIniData("HistoryFilter", "WindowSize", "10", iniPath));
-            int trimCount = int.Parse(EngineDA.Helpers.IniConfigHelper.ReadIniData("HistoryFilter", "TrimCount", "2", iniPath));
 
-            for (int ch = 0; ch < numChannels; ch++)
+            // 使用保真滤波，只需要这一个窗口参数 (默认推荐 10)
+            int windowSize = int.Parse(EngineDA.Helpers.IniConfigHelper.ReadIniData("HistoryFilter", "WindowSize", "10", iniPath));
+
+            // 多线程并行解析，榨干多核性能，保证极速加载
+            System.Threading.Tasks.Parallel.For(0, numChannels, ch =>
             {
                 double[] vals = new double[count];
                 for (int i = 0; i < count; i++)
@@ -182,7 +184,8 @@ namespace EngineDA.Views
 
                 if (isFilterEnabled)
                 {
-                    vals = ApplyTrimmedMeanFilter(vals, windowSize, trimCount);
+                    // 调用 Hampel 保真滤波算法
+                    vals = ApplyHampelFilter(vals, windowSize);
                 }
 
                 _channelData[startChannelOffset + ch] = new ChannelData
@@ -190,42 +193,66 @@ namespace EngineDA.Views
                     Values = vals,
                     SampleRate = sampleRate
                 };
-            }
+            });
         }
 
-        private double[] ApplyTrimmedMeanFilter(double[] data, int windowSize, int trimCount)
+        // ======================================================================
+        // 工业级保真滤波：Hampel Filter (基于 MAD 绝对中位差的异常飞点剔除)
+        // 核心思想：只替换离谱的电磁毛刺，对正常波形 100% 输出原始传感器数据！
+        // ======================================================================
+        private double[] ApplyHampelFilter(double[] src, int windowSize)
         {
-            if (data == null || data.Length == 0) return Array.Empty<double>();
-            double[] result = new double[data.Length];
-            int halfWindow = windowSize / 2;
+            int n = src.Length;
+            if (n == 0) return Array.Empty<double>();
 
-            for (int i = 0; i < data.Length; i++)
+            var dst = new double[n];
+            int half = windowSize / 2;
+            var win = new double[windowSize + 4];
+            var deviations = new double[windowSize + 4];
+
+            double thresholdFactor = 3.0; // 3-sigma 法则
+
+            for (int i = 0; i < n; i++)
             {
-                int start = Math.Max(0, i - halfWindow);
-                int end = Math.Min(data.Length - 1, i + halfWindow);
-                int currentWindowSize = end - start + 1;
-
-                double[] window = new double[currentWindowSize];
-                Array.Copy(data, start, window, 0, currentWindowSize);
-
-                Array.Sort(window);
-
-                int currentTrim = Math.Min(trimCount, (currentWindowSize - 1) / 2);
-
-                double sum = 0;
                 int count = 0;
-
-                for (int j = currentTrim; j < currentWindowSize - currentTrim; j++)
+                for (int k = i - half; k < i - half + windowSize; k++)
                 {
-                    sum += window[j];
-                    count++;
+                    // 经典的边缘镜像反射，保证不删减数据量
+                    int idx = k < 0 ? -k : (k >= n ? 2 * n - 2 - k : k);
+                    win[count++] = src[idx];
                 }
 
-                result[i] = count > 0 ? sum / count : data[i];
-            }
+                // 计算局部中位数
+                var sortedWin = new double[count];
+                Array.Copy(win, sortedWin, count);
+                Array.Sort(sortedWin);
+                double median = sortedWin[count / 2];
 
-            return result;
+                // 计算绝对偏差
+                for (int j = 0; j < count; j++)
+                {
+                    deviations[j] = Math.Abs(win[j] - median);
+                }
+
+                // 找偏差的中位数 (MAD)
+                Array.Sort(deviations, 0, count);
+                double mad = deviations[count / 2];
+
+                // 判断是否为异常飞点
+                double maxAllowedDeviation = thresholdFactor * 1.4826 * mad;
+
+                if (mad > 1e-6 && Math.Abs(src[i] - median) > maxAllowedDeviation)
+                {
+                    dst[i] = median; // 确诊为电噪毛刺，用基准线替换
+                }
+                else
+                {
+                    dst[i] = src[i]; // 正常数据 100% 保留，绝对防失真
+                }
+            }
+            return dst;
         }
+
         private ParsedFile ExtractAllNumbersFast(string filePath)
         {
             ParsedFile pf = new ParsedFile();
@@ -254,6 +281,7 @@ namespace EngineDA.Views
             ConfigureChartStyle();
 
             double currentStartTime = GetStartTime();
+            double maxTimeForSlider = currentStartTime;
 
             foreach (SensorConfig config in SensorListBox.SelectedItems)
             {
@@ -269,21 +297,91 @@ namespace EngineDA.Views
 
                     var sig = HistoryPlot.Plot.Add.Signal(ys);
                     sig.Data.Period = chData.Period;
-
                     sig.Data.XOffset = currentStartTime;
 
                     string unitStr = string.IsNullOrEmpty(config.Unit) ? "" : $" ({config.Unit})";
                     sig.Label = $"{config.Name}{unitStr} [CH:{config.Channel}]";
+
+                    double currentChannelMaxTime = currentStartTime + (n - 1) * chData.Period;
+                    if (currentChannelMaxTime > maxTimeForSlider)
+                    {
+                        maxTimeForSlider = currentChannelMaxTime;
+                    }
                 }
             }
 
-            _crosshair = HistoryPlot.Plot.Add.Crosshair(0, 0);
-            _crosshair.IsVisible = false;
-            _crosshair.LineColor = ScottPlot.Colors.Red;
+            _timeLine = HistoryPlot.Plot.Add.VerticalLine(currentStartTime);
+            _timeLine.LineColor = ScottPlot.Colors.Red;
+            _timeLine.LineWidth = 1.5f;
+
+            TimeSlider.Minimum = currentStartTime;
+            TimeSlider.Maximum = maxTimeForSlider == currentStartTime ? currentStartTime + 1 : maxTimeForSlider;
+            TimeSlider.Value = currentStartTime;
 
             HistoryPlot.Plot.ShowLegend();
             HistoryPlot.Plot.Axes.AutoScale();
             HistoryPlot.Refresh();
+        }
+
+        private void TimeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_channelData == null || SensorListBox.SelectedItems.Count == 0 || _timeLine == null) return;
+
+            double xSec = e.NewValue;
+            double currentStartTime = GetStartTime();
+            double timeFromStart = xSec - currentStartTime;
+
+            _timeLine.X = xSec;
+
+            if (TxtSliderTime != null) TxtSliderTime.Text = $"当前时刻: {xSec:F4} 秒";
+
+            _cursorItems.Clear();
+
+            if (timeFromStart >= 0)
+            {
+                foreach (SensorConfig config in SensorListBox.SelectedItems)
+                {
+                    if (config.Channel >= 0 && config.Channel < 224 && _channelData[config.Channel] != null)
+                    {
+                        var chData = _channelData[config.Channel];
+                        int xIndex = (int)Math.Round(timeFromStart * chData.SampleRate);
+
+                        if (xIndex >= 0 && xIndex < chData.Values.Length)
+                        {
+                            double physicalVal = chData.Values[xIndex] * config.K + config.B;
+
+                            _cursorItems.Add(new CursorItem
+                            {
+                                Name = config.Name,
+                                ChannelInfo = $"[CH:{config.Channel}]",
+                                Value = $"{physicalVal:F3} {config.Unit}"
+                            });
+                        }
+                    }
+                }
+                HistoryPlot.Refresh();
+            }
+        }
+
+        // ================= 键盘操作滑块逻辑 =================
+        private void Grid_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            // 如果焦点在文本框内（比如正在输入起始时间），不拦截左右键
+            if (Keyboard.FocusedElement is TextBox) return;
+
+            // 固定精确步长 0.001 秒，按住 Ctrl 键移动大步长(1.0 秒)
+            double step = (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)) ? 1.0 : 0.001;
+
+            if (e.Key == Key.Left)
+            {
+                TimeSlider.Value = Math.Max(TimeSlider.Minimum, TimeSlider.Value - step);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Right)
+            {
+                TimeSlider.Value = Math.Min(TimeSlider.Maximum, TimeSlider.Value + step);
+                e.Handled = true;
+            }
         }
 
         private void ConfigureChartStyle()
@@ -301,56 +399,6 @@ namespace EngineDA.Views
             HistoryPlot.Plot.XLabel("时序时间 (秒)");
             HistoryPlot.Plot.YLabel("物理量");
             HistoryPlot.Plot.Title("传感器历史曲线");
-        }
-
-        private void HistoryPlot_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (_channelData == null || SensorListBox.SelectedItems.Count == 0 || _crosshair == null) return;
-
-            Point position = e.GetPosition(HistoryPlot);
-
-            var dpi = VisualTreeHelper.GetDpi(HistoryPlot);
-
-            float physicalX = (float)(position.X * dpi.DpiScaleX);
-            float physicalY = (float)(position.Y * dpi.DpiScaleY);
-
-            var pixel = new ScottPlot.Pixel(physicalX, physicalY);
-            var coord = HistoryPlot.Plot.GetCoordinates(pixel);
-
-            double xSec = coord.X;
-            double currentStartTime = GetStartTime();
-
-            double timeFromStart = xSec - currentStartTime;
-
-            if (timeFromStart >= 0)
-            {
-                _crosshair.IsVisible = true;
-
-                _crosshair.Position = new ScottPlot.Coordinates(xSec, coord.Y);
-
-                string info = $"🕒 发生时刻 (X轴): {xSec:F4} 秒\n";
-                foreach (SensorConfig config in SensorListBox.SelectedItems)
-                {
-                    if (config.Channel >= 0 && config.Channel < 224 && _channelData[config.Channel] != null)
-                    {
-                        var chData = _channelData[config.Channel];
-                        int xIndex = (int)Math.Round(timeFromStart * chData.SampleRate);
-
-                        if (xIndex >= 0 && xIndex < chData.Values.Length)
-                        {
-                            double physicalVal = chData.Values[xIndex] * config.K + config.B;
-                            info += $"► {config.Name} [CH:{config.Channel}]:  {physicalVal:F3} {config.Unit}\n";
-                        }
-                    }
-                }
-                TxtCursorData.Text = info.TrimEnd();
-                HistoryPlot.Refresh();
-            }
-            else
-            {
-                _crosshair.IsVisible = false;
-                HistoryPlot.Refresh();
-            }
         }
     }
 }

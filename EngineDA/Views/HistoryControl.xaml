@@ -10,7 +10,11 @@
     VerticalAlignment="Stretch"
     mc:Ignorable="d">
 
-    <Grid Margin="15">
+    <Grid
+        Margin="15"
+        Background="Transparent"
+        Focusable="True"
+        PreviewKeyDown="Grid_PreviewKeyDown">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="320" />
             <ColumnDefinition Width="*" />
@@ -29,8 +33,10 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
                 <TextBlock
@@ -91,8 +97,7 @@
 
                 <ListBox
                     x:Name="SensorListBox"
-                    Grid.Row="4"
-                    Margin="0,35,0,0"
+                    Grid.Row="5"
                     Background="Transparent"
                     BorderThickness="0"
                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -124,7 +129,6 @@
                             </Setter>
                         </Style>
                     </ListBox.ItemContainerStyle>
-
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">
@@ -159,20 +163,58 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <Border
-                    Grid.Row="5"
-                    Margin="0,15,0,0"
-                    Padding="12"
-                    Background="#1E1E1E"
-                    CornerRadius="6">
-                    <TextBlock
-                        x:Name="TxtCursorData"
-                        FontSize="13"
-                        Foreground="#00E676"
-                        LineHeight="22"
-                        Text="查看各通道详细数值"
-                        TextWrapping="Wrap" />
-                </Border>
+                <hc:Divider
+                    Grid.Row="6"
+                    Margin="0,15,0,10"
+                    Content="游标处数据 (支持键盘左右键)"
+                    Foreground="#A0A0A0" />
+
+                <ScrollViewer
+                    Grid.Row="7"
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="CursorDataList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border
+                                    Margin="0,0,0,6"
+                                    Padding="12,10"
+                                    Background="#25252D"
+                                    BorderBrush="#33333C"
+                                    BorderThickness="1"
+                                    CornerRadius="6">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <TextBlock
+                                                FontSize="14"
+                                                FontWeight="Bold"
+                                                Foreground="White"
+                                                Text="{Binding Name}" />
+                                            <TextBlock
+                                                Margin="0,4,0,0"
+                                                FontSize="12"
+                                                Foreground="#888"
+                                                Text="{Binding ChannelInfo}" />
+                                        </StackPanel>
+
+                                        <TextBlock
+                                            Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            FontWeight="Bold"
+                                            Foreground="White"
+                                            Text="{Binding Value}" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
             </Grid>
         </Border>
 
@@ -181,12 +223,47 @@
             Background="{DynamicResource RegionBrush}"
             CornerRadius="8"
             Effect="{DynamicResource EffectShadow2}">
-            <ScottPlot:WpfPlot
-                x:Name="HistoryPlot"
-                Margin="5"
-                SnapsToDevicePixels="True"
-                TextOptions.TextFormattingMode="Display"
-                UseLayoutRounding="True" />
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <ScottPlot:WpfPlot
+                    x:Name="HistoryPlot"
+                    Grid.Row="0"
+                    Margin="5"
+                    SnapsToDevicePixels="True"
+                    TextOptions.TextFormattingMode="Display"
+                    UseLayoutRounding="True" />
+
+                <Border
+                    Grid.Row="1"
+                    Padding="15,10,15,15"
+                    Background="#1A1A1F"
+                    BorderBrush="#33333C"
+                    BorderThickness="0,1,0,0"
+                    CornerRadius="0,0,8,8">
+                    <StackPanel>
+                        <TextBlock
+                            x:Name="TxtSliderTime"
+                            Margin="0,0,0,8"
+                            HorizontalAlignment="Center"
+                            FontSize="15"
+                            FontWeight="Bold"
+                            Foreground="#00E676"
+                            Text="当前时刻: -- 秒" />
+                        <Slider
+                            x:Name="TimeSlider"
+                            Cursor="Hand"
+                            IsSnapToTickEnabled="False"
+                            Maximum="100"
+                            Minimum="0"
+                            ValueChanged="TimeSlider_ValueChanged"
+                            Value="0" />
+                    </StackPanel>
+                </Border>
+            </Grid>
         </Border>
     </Grid>
 </UserControl>

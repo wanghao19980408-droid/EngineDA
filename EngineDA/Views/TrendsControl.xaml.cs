@@ -54,7 +54,7 @@ namespace EngineDA.Views
 
             SetupPlots();
 
-            _uiTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(50) };
+            _uiTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(100) };
             _uiTimer.Tick += UiTimer_Tick;
             _uiTimer.Start();
         }
@@ -98,7 +98,7 @@ namespace EngineDA.Views
                 _tooltipAnnotations[i].LabelBorderColor = ScottPlot.Colors.Yellow;
                 _tooltipAnnotations[i].IsVisible = false;
 
-                int plotIndex = i; // 闭包捕获
+                int plotIndex = i; 
                 plot.MouseMove += (s, e) => Plot_MouseMove(s, e, plotIndex);
                 plot.MouseLeave += (s, e) => { _crosshairs[plotIndex].IsVisible = false; _tooltipAnnotations[plotIndex].IsVisible = false; plot.Refresh(); };
                 plot.MouseUp += (s, e) => { if (_isFrozen && _isAutoY) AutoFitY(true); };
@@ -134,14 +134,16 @@ namespace EngineDA.Views
                     if (val > ch.PeakMax) ch.PeakMax = val;
                     if (val < ch.PeakMin) ch.PeakMin = val;
 
-                    if (_renderTickCount % 5 == 0)
+                    if (_renderTickCount % 5 == 0 && this.IsVisible)
                     {
                         ch.UpdateLabelUI(val, sensor.RawVoltage);
                     }
                 }
             }
 
-            // 更新所有图表的时间轴
+
+            if (!this.IsVisible) return;
+
             foreach (var plot in _plots)
             {
                 plot.Plot.Axes.SetLimitsX(currentNowOA - windowDays, currentNowOA);
@@ -170,7 +172,6 @@ namespace EngineDA.Views
                 double maxY = double.MinValue;
                 bool found = false;
 
-                // 仅自适应挂载在当前 plot 上的频道
                 var channelsOnPlot = _activeChannels.Values.Where(c => c.ParentPlot == plot);
 
                 foreach (var ch in channelsOnPlot)
