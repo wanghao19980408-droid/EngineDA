@@ -41,7 +41,7 @@
                         FontSize="15"
                         FontWeight="Bold"
                         Foreground="#00E676"
-                        Text="⚙️ 历史数据滤波配置 (内部专属)" />
+                        Text="⚙️ 实验数据滤波配置" />
                     <Button
                         Width="40"
                         HorizontalAlignment="Right"
@@ -60,13 +60,12 @@
                     Margin="0,0,0,15"
                     FontSize="13"
                     Foreground="#B0B0B0"
-                    Text="此配置将对【历史数据】解析时全局生效。客户无感知。采用去极值均值滤波算法。"
                     TextWrapping="Wrap" />
 
                 <CheckBox
                     x:Name="chkEnableFilter"
                     Margin="0,0,0,20"
-                    Content="开启历史数据自动滤波"
+                    Content="开启实验数据自动滤波"
                     FontSize="15"
                     FontWeight="Bold"
                     Foreground="White" />
