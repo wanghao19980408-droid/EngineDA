@@ -27,7 +27,6 @@ namespace EngineDA.ViewModels
             Sheets.Clear();
             var sheetNames = _service.GetSheetNames();
 
-            // 容错：如果文件不存在或没有Sheet，给一个默认的空Sheet，防止界面卡死无反馈
             if (sheetNames.Count == 0)
             {
                 Sheets.Add(new SheetConfig { SheetName = "发动机", SensorConfigs = new ObservableCollection<SensorConfig>() });
@@ -57,10 +56,8 @@ namespace EngineDA.ViewModels
             {
                 try
                 {
-                    // 保存配置到 sensors.xlsx
                     _service.SaveAllConfigs(Sheets);
 
-                    // 【核心改动】发送广播：通知所有关心配置的组件“配置已更新”
                     WeakReferenceMessenger.Default.Send(new ConfigReloadMessage());
 
                     var successDialog = new Views.ConfirmDialog("配置保存成功，已实时生效！");

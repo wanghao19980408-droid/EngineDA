@@ -26,7 +26,6 @@ namespace EngineDA.Views
         public List<double> Values = new List<double>();
     }
 
-    // 纯净的数据模型，去掉了颜色属性
     public class CursorItem
     {
         public string Name { get; set; } = "";
@@ -170,10 +169,8 @@ namespace EngineDA.Views
             string iniPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Config.ini");
             bool isFilterEnabled = EngineDA.Helpers.IniConfigHelper.ReadIniData("HistoryFilter", "Enabled", "False", iniPath).Equals("True", StringComparison.OrdinalIgnoreCase);
 
-            // 使用保真滤波，只需要这一个窗口参数 (默认推荐 10)
             int windowSize = int.Parse(EngineDA.Helpers.IniConfigHelper.ReadIniData("HistoryFilter", "WindowSize", "10", iniPath));
 
-            // 多线程并行解析，榨干多核性能，保证极速加载
             System.Threading.Tasks.Parallel.For(0, numChannels, ch =>
             {
                 double[] vals = new double[count];
@@ -184,7 +181,6 @@ namespace EngineDA.Views
 
                 if (isFilterEnabled)
                 {
-                    // 调用 Hampel 保真滤波算法
                     vals = ApplyHampelFilter(vals, windowSize);
                 }
 
@@ -196,10 +192,6 @@ namespace EngineDA.Views
             });
         }
 
-        // ======================================================================
-        // 工业级保真滤波：Hampel Filter (基于 MAD 绝对中位差的异常飞点剔除)
-        // 核心思想：只替换离谱的电磁毛刺，对正常波形 100% 输出原始传感器数据！
-        // ======================================================================
         private double[] ApplyHampelFilter(double[] src, int windowSize)
         {
             int n = src.Length;
@@ -210,44 +202,39 @@ namespace EngineDA.Views
             var win = new double[windowSize + 4];
             var deviations = new double[windowSize + 4];
 
-            double thresholdFactor = 3.0; // 3-sigma 法则
+            double thresholdFactor = 3.0; 
 
             for (int i = 0; i < n; i++)
             {
                 int count = 0;
                 for (int k = i - half; k < i - half + windowSize; k++)
                 {
-                    // 经典的边缘镜像反射，保证不删减数据量
                     int idx = k < 0 ? -k : (k >= n ? 2 * n - 2 - k : k);
                     win[count++] = src[idx];
                 }
 
-                // 计算局部中位数
                 var sortedWin = new double[count];
                 Array.Copy(win, sortedWin, count);
                 Array.Sort(sortedWin);
                 double median = sortedWin[count / 2];
 
-                // 计算绝对偏差
                 for (int j = 0; j < count; j++)
                 {
                     deviations[j] = Math.Abs(win[j] - median);
                 }
 
-                // 找偏差的中位数 (MAD)
                 Array.Sort(deviations, 0, count);
                 double mad = deviations[count / 2];
 
-                // 判断是否为异常飞点
                 double maxAllowedDeviation = thresholdFactor * 1.4826 * mad;
 
                 if (mad > 1e-6 && Math.Abs(src[i] - median) > maxAllowedDeviation)
                 {
-                    dst[i] = median; // 确诊为电噪毛刺，用基准线替换
+                    dst[i] = median;
                 }
                 else
                 {
-                    dst[i] = src[i]; // 正常数据 100% 保留，绝对防失真
+                    dst[i] = src[i]; 
                 }
             }
             return dst;
@@ -363,13 +350,10 @@ namespace EngineDA.Views
             }
         }
 
-        // ================= 键盘操作滑块逻辑 =================
         private void Grid_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            // 如果焦点在文本框内（比如正在输入起始时间），不拦截左右键
             if (Keyboard.FocusedElement is TextBox) return;
 
-            // 固定精确步长 0.001 秒，按住 Ctrl 键移动大步长(1.0 秒)
             double step = (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)) ? 1.0 : 0.001;
 
             if (e.Key == Key.Left)

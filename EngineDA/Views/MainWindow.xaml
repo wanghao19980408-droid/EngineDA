@@ -2,11 +2,12 @@
     x:Class="EngineDA.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="寰宇航天 - 数据采集引擎"
-    Width="1400"
-    Height="800"
+    Title="寰宇航天 - 发动机数据监测"
+    Width="2400"
+    Height="1080"
     AllowsTransparency="True"
     Background="Transparent"
+    Icon="/Assets/Images/worldCup.ico"
     WindowStartupLocation="CenterScreen"
     WindowStyle="None">
 

@@ -122,13 +122,36 @@
                     Content="🗑 清屏"
                     Cursor="Hand"
                     Foreground="White" />
+
+                <Button
+                    x:Name="BtnSaveLayout"
+                    Width="90"
+                    Height="30"
+                    Margin="0,0,10,0"
+                    Background="#007ACC"
+                    BorderThickness="0"
+                    Click="BtnSaveLayout_Click"
+                    Content="💾 保存布局"
+                    Cursor="Hand"
+                    Foreground="White" />
+                <Button
+                    x:Name="BtnLoadLayout"
+                    Width="90"
+                    Height="30"
+                    Margin="0,0,10,0"
+                    Background="#444444"
+                    BorderThickness="0"
+                    Click="BtnLoadLayout_Click"
+                    Content="📂 加载布局"
+                    Cursor="Hand"
+                    Foreground="White" />
             </StackPanel>
         </Border>
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="250" />
+                <ColumnDefinition Width="420" />
             </Grid.ColumnDefinitions>
 
             <Grid Grid.Column="0" Background="#1A1A1F">
@@ -307,20 +330,31 @@
                 Background="#1A1A1F"
                 BorderBrush="#33333C"
                 BorderThickness="1,0,0,0">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel
-                        x:Name="InfoPanel"
-                        Margin="10"
-                        Orientation="Vertical">
-                        <TextBlock
-                            Margin="0,0,0,15"
-                            HorizontalAlignment="Center"
-                            FontSize="16"
-                            FontWeight="Bold"
-                            Foreground="White"
-                            Text="实时通道监控" />
-                    </StackPanel>
-                </ScrollViewer>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock
+                        Grid.Row="0"
+                        Margin="0,20,0,15"
+                        HorizontalAlignment="Center"
+                        FontSize="16"
+                        FontWeight="Bold"
+                        Foreground="White"
+                        Text="实时通道监控" />
+
+                    <ScrollViewer
+                        Grid.Row="1"
+                        HorizontalScrollBarVisibility="Disabled"
+                        VerticalScrollBarVisibility="Auto">
+                        <StackPanel
+                            x:Name="InfoPanel"
+                            Margin="10,0,10,10"
+                            Orientation="Vertical" />
+                    </ScrollViewer>
+                </Grid>
             </Border>
         </Grid>
     </Grid>

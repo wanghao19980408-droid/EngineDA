@@ -4,7 +4,9 @@ using ScottPlot;
 using ScottPlot.Plottables;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -98,7 +100,7 @@ namespace EngineDA.Views
                 _tooltipAnnotations[i].LabelBorderColor = ScottPlot.Colors.Yellow;
                 _tooltipAnnotations[i].IsVisible = false;
 
-                int plotIndex = i; 
+                int plotIndex = i;
                 plot.MouseMove += (s, e) => Plot_MouseMove(s, e, plotIndex);
                 plot.MouseLeave += (s, e) => { _crosshairs[plotIndex].IsVisible = false; _tooltipAnnotations[plotIndex].IsVisible = false; plot.Refresh(); };
                 plot.MouseUp += (s, e) => { if (_isFrozen && _isAutoY) AutoFitY(true); };
@@ -113,7 +115,6 @@ namespace EngineDA.Views
             _renderTickCount++;
             double currentNowOA = DateTime.Now.ToOADate();
             double windowDays = TimeSpan.FromSeconds(ViewWindowSeconds).TotalDays;
-            double cutoffTime = currentNowOA - windowDays - TimeSpan.FromSeconds(5).TotalDays;
 
             foreach (var kvp in _activeChannels)
             {
@@ -122,25 +123,19 @@ namespace EngineDA.Views
                 if (sensor != null)
                 {
                     double val = sensor.Value;
-                    ch.Logger.Add(currentNowOA, val);
-                    ch.History.Add((currentNowOA, val));
 
-                    if (ch.History.Count > 2000)
-                    {
-                        int removeIdx = ch.History.FindIndex(p => p.TimeOA >= cutoffTime);
-                        if (removeIdx > 0) ch.History.RemoveRange(0, removeIdx);
-                    }
+                    ch.Logger.Add(currentNowOA, val);
+                    ch.HistoryBuffer.Add(currentNowOA, val);
 
                     if (val > ch.PeakMax) ch.PeakMax = val;
                     if (val < ch.PeakMin) ch.PeakMin = val;
 
-                    if (_renderTickCount % 5 == 0 && this.IsVisible)
+                    if (this.IsVisible)
                     {
                         ch.UpdateLabelUI(val, sensor.RawVoltage);
                     }
                 }
             }
-
 
             if (!this.IsVisible) return;
 
@@ -172,13 +167,15 @@ namespace EngineDA.Views
                 double maxY = double.MinValue;
                 bool found = false;
 
-                var channelsOnPlot = _activeChannels.Values.Where(c => c.ParentPlot == plot);
+                var channelsOnPlot = _activeChannels.Values.Where(c => c.ParentPlot == plot && c.Logger.IsVisible);
 
                 foreach (var ch in channelsOnPlot)
                 {
-                    for (int i = ch.History.Count - 1; i >= 0; i--)
+                    var buf = ch.HistoryBuffer;
+                    int count = buf.Count;
+                    for (int i = count - 1; i >= 0; i--)
                     {
-                        var p = ch.History[i];
+                        var p = buf[i];
                         if (p.TimeOA < minX) break;
 
                         if (p.TimeOA <= maxX)
@@ -205,7 +202,7 @@ namespace EngineDA.Views
 
                     if (needsUpdate)
                     {
-                        plot.Plot.Axes.SetLimitsY(minY - padding, maxY + padding);
+                        plot.Plot.Axes.SetLimitsY(minY - padding, Math.Max(minY + 0.001, maxY + padding));
                     }
                 }
             }
@@ -228,7 +225,6 @@ namespace EngineDA.Views
             Coordinates mouseLocation = currentPlot.Plot.GetCoordinates(mousePixel);
 
             double mouseTimeOA = mouseLocation.X;
-
             currentCrosshair.Position = new Coordinates(mouseLocation.X, mouseLocation.Y);
             currentCrosshair.IsVisible = true;
 
@@ -236,16 +232,16 @@ namespace EngineDA.Views
             double closestTimeOA = 0;
             string tooltipText = "";
 
-            var channelsOnPlot = _activeChannels.Values.Where(c => c.ParentPlot == currentPlot);
+            var channelsOnPlot = _activeChannels.Values.Where(c => c.ParentPlot == currentPlot && c.Logger.IsVisible);
 
             foreach (var ch in channelsOnPlot)
             {
-                if (ch.History.Count == 0) continue;
+                if (ch.HistoryBuffer.Count == 0) continue;
 
-                int closestIdx = BinarySearchClosest(ch.History, mouseTimeOA);
-                if (closestIdx >= 0 && closestIdx < ch.History.Count)
+                int closestIdx = BinarySearchClosestRing(ch.HistoryBuffer, mouseTimeOA);
+                if (closestIdx >= 0)
                 {
-                    var closest = ch.History[closestIdx];
+                    var closest = ch.HistoryBuffer[closestIdx];
                     double timeDiffDays = Math.Abs(closest.TimeOA - mouseTimeOA);
 
                     if (timeDiffDays < TimeSpan.FromSeconds(0.5).TotalDays)
@@ -261,19 +257,15 @@ namespace EngineDA.Views
             {
                 DateTime ptTime = DateTime.FromOADate(closestTimeOA);
                 currentAnnotation.Text = $"时间: {ptTime:HH:mm:ss.fff}\n---------------------\n{tooltipText.Trim()}";
-
                 currentAnnotation.OffsetX = (float)(position.X > currentPlot.ActualWidth - 150 ? position.X - 160 : position.X + 15);
                 currentAnnotation.OffsetY = (float)(position.Y + 15);
                 currentAnnotation.IsVisible = true;
 
                 currentCrosshair.Position = new Coordinates(closestTimeOA, mouseLocation.Y);
-                currentCrosshair.IsVisible = true;
             }
             else
             {
                 currentAnnotation.IsVisible = false;
-                currentCrosshair.Position = new Coordinates(mouseLocation.X, mouseLocation.Y);
-                currentCrosshair.IsVisible = true;
             }
 
             if (_isFrozen)
@@ -287,22 +279,24 @@ namespace EngineDA.Views
             }
         }
 
-        private int BinarySearchClosest(List<(double TimeOA, double Value)> list, double targetOA)
+        private int BinarySearchClosestRing(RingBuffer buffer, double targetOA)
         {
             int left = 0;
-            int right = list.Count - 1;
+            int right = buffer.Count - 1;
             while (left <= right)
             {
                 int mid = left + (right - left) / 2;
-                if (list[mid].TimeOA == targetOA) return mid;
-                if (list[mid].TimeOA < targetOA) left = mid + 1;
+                double midVal = buffer[mid].TimeOA;
+
+                if (midVal == targetOA) return mid;
+                if (midVal < targetOA) left = mid + 1;
                 else right = mid - 1;
             }
 
-            if (left >= list.Count) return list.Count - 1;
+            if (left >= buffer.Count) return buffer.Count - 1;
             if (right < 0) return 0;
 
-            return Math.Abs(list[left].TimeOA - targetOA) < Math.Abs(list[right].TimeOA - targetOA) ? left : right;
+            return Math.Abs(buffer[left].TimeOA - targetOA) < Math.Abs(buffer[right].TimeOA - targetOA) ? left : right;
         }
 
         #region 按钮事件
@@ -320,6 +314,20 @@ namespace EngineDA.Views
             var current = ((SolidColorBrush)BtnChangeColor.Background).Color;
             int idx = Array.IndexOf(colors, current);
             BtnChangeColor.Background = new SolidColorBrush(colors[(idx + 1) % colors.Length]);
+        }
+
+        private void RefreshInfoPanelLayout()
+        {
+            InfoPanel.Children.Clear();
+            var sortedChannels = _activeChannels.Values
+                .OrderByDescending(c => c.Config.IsImportant)
+                .ThenBy(c => c.Config.Channel)
+                .ToList();
+
+            foreach (var ch in sortedChannels)
+            {
+                InfoPanel.Children.Add(ch.UIPanel);
+            }
         }
 
         private void BtnAdd_Click(object sender, RoutedEventArgs e)
@@ -341,10 +349,10 @@ namespace EngineDA.Views
                 logger.LineStyle.Width = 1.5f;
                 logger.ManageAxisLimits = false;
 
-                var channel = new ActiveChannel(selectedSensor, logger, brush, targetPlot, targetPlotIndex + 1, RemoveSingleChannel);
+                var channel = new ActiveChannel(selectedSensor, logger, brush, targetPlot, targetPlotIndex + 1, 2000, RemoveSingleChannel);
                 _activeChannels.Add(selectedSensor.Channel, channel);
 
-                InfoPanel.Children.Add(channel.UIPanel);
+                RefreshInfoPanelLayout();
             }
         }
 
@@ -353,8 +361,9 @@ namespace EngineDA.Views
             if (channel == null) return;
 
             channel.ParentPlot.Plot.Remove(channel.Logger);
-            InfoPanel.Children.Remove(channel.UIPanel);
             _activeChannels.Remove(channel.Config.Channel);
+
+            RefreshInfoPanelLayout();
             channel.ParentPlot.Refresh();
         }
 
@@ -383,46 +392,233 @@ namespace EngineDA.Views
             foreach (var ch in _activeChannels.Values)
             {
                 ch.ParentPlot.Plot.Remove(ch.Logger);
-                InfoPanel.Children.Remove(ch.UIPanel);
             }
             _activeChannels.Clear();
+            InfoPanel.Children.Clear();
             foreach (var plot in _plots) plot.Refresh();
         }
 
         #endregion
+
+        #region 布局保存与加载逻辑
+
+        public class LayoutConfigItem
+        {
+            public int Channel { get; set; }
+            public int PlotIndex { get; set; }
+            public byte R { get; set; }
+            public byte G { get; set; }
+            public byte B { get; set; }
+        }
+
+        private readonly string LayoutFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TrendsLayout.json");
+
+        private void BtnSaveLayout_Click(object sender, RoutedEventArgs e)
+        {
+            if (_activeChannels.Count == 0)
+            {
+                MessageBox.Show("当前没有添加任何曲线，无法保存布局！", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            try
+            {
+                var layoutList = _activeChannels.Values.Select(ch =>
+                {
+                    var color = ((SolidColorBrush)ch.UIPanel.BorderBrush).Color;
+                    return new LayoutConfigItem
+                    {
+                        Channel = ch.Config.Channel,
+                        PlotIndex = Array.IndexOf(_plots, ch.ParentPlot),
+                        R = color.R,
+                        G = color.G,
+                        B = color.B
+                    };
+                }).ToList();
+
+                string json = JsonSerializer.Serialize(layoutList);
+                File.WriteAllText(LayoutFilePath, json);
+
+                MessageBox.Show("当前视图布局已成功保存！", "保存成功", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"保存布局失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnLoadLayout_Click(object sender, RoutedEventArgs e)
+        {
+            if (!File.Exists(LayoutFilePath))
+            {
+                MessageBox.Show("未找到保存的布局文件！请先保存一次布局。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            try
+            {
+                string json = File.ReadAllText(LayoutFilePath);
+                var layoutList = JsonSerializer.Deserialize<List<LayoutConfigItem>>(json);
+                if (layoutList == null || _dashboardVM == null) return;
+
+                BtnClear_Click(null, null);
+
+                foreach (var item in layoutList)
+                {
+                    var sensor = _dashboardVM.Sensors.FirstOrDefault(s => s.Channel == item.Channel);
+                    if (sensor == null) continue;
+
+                    var targetPlot = _plots[item.PlotIndex];
+                    var sColor = new ScottPlot.Color(item.R, item.G, item.B);
+                    var brush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(item.R, item.G, item.B));
+
+                    var logger = targetPlot.Plot.Add.DataLogger();
+                    logger.Color = sColor;
+                    logger.LineStyle.Width = 1.5f;
+                    logger.ManageAxisLimits = false;
+
+                    var channel = new ActiveChannel(sensor, logger, brush, targetPlot, item.PlotIndex + 1, 2000, RemoveSingleChannel);
+                    _activeChannels.Add(sensor.Channel, channel);
+                }
+
+                RefreshInfoPanelLayout();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"加载布局失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
+
+        public class RingBuffer
+        {
+            private readonly (double TimeOA, double Value)[] _buffer;
+            private int _head;
+            public int Count { get; private set; }
+            public int Capacity { get; }
+
+            public RingBuffer(int capacity)
+            {
+                Capacity = capacity;
+                _buffer = new (double, double)[capacity];
+            }
+
+            public void Add(double timeOA, double value)
+            {
+                _buffer[_head] = (timeOA, value);
+                _head = (_head + 1) % Capacity;
+                if (Count < Capacity) Count++;
+            }
+
+            public (double TimeOA, double Value) this[int i]
+            {
+                get
+                {
+                    if (Count < Capacity) return _buffer[i];
+                    return _buffer[(_head + i) % Capacity];
+                }
+            }
+        }
 
         private class ActiveChannel
         {
             public SensorDisplay Config { get; }
             public DataLogger Logger { get; }
             public ScottPlot.WPF.WpfPlot ParentPlot { get; }
-            public List<(double TimeOA, double Value)> History { get; } = new();
+            public RingBuffer HistoryBuffer { get; }
             public Border UIPanel { get; }
-            private TextBlock InfoText { get; }
+
+            private TextBlock TitleText { get; }
+            private TextBlock CurrentValueText { get; }
+            private TextBlock StatsText { get; }
+
             private int PlotIndex { get; }
 
             public double PeakMax { get; set; } = double.MinValue;
             public double PeakMin { get; set; } = double.MaxValue;
 
-            public ActiveChannel(SensorDisplay config, DataLogger logger, SolidColorBrush color, ScottPlot.WPF.WpfPlot parentPlot, int plotIndex, Action<ActiveChannel> onDelete)
+            public ActiveChannel(SensorDisplay config, DataLogger logger, SolidColorBrush color, ScottPlot.WPF.WpfPlot parentPlot, int plotIndex, int bufferSize, Action<ActiveChannel> onDelete)
             {
                 Config = config;
                 Logger = logger;
                 ParentPlot = parentPlot;
                 PlotIndex = plotIndex;
+                HistoryBuffer = new RingBuffer(bufferSize);
+
+                bool isImp = config.IsImportant;
+                var borderColor = isImp ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 215, 0)) : color;
+                var thickness = isImp ? new Thickness(2) : new Thickness(4, 0, 0, 0);
 
                 UIPanel = new Border
                 {
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
                     Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 37, 45)),
-                    BorderBrush = color,
-                    BorderThickness = new Thickness(3, 0, 0, 0),
-                    Margin = new Thickness(0, 0, 0, 10),
-                    Padding = new Thickness(10)
+                    BorderBrush = borderColor,
+                    BorderThickness = thickness,
+                    CornerRadius = new CornerRadius(6),
+                    Margin = new Thickness(0, 0, 0, 12),
+                    Padding = new Thickness(15, 12, 15, 12)
                 };
 
-                Grid layoutContainer = new Grid();
-                layoutContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                layoutContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                if (isImp)
+                {
+                    UIPanel.Effect = new System.Windows.Media.Effects.DropShadowEffect
+                    {
+                        Color = System.Windows.Media.Color.FromRgb(255, 215, 0),
+                        BlurRadius = 15,
+                        ShadowDepth = 0,
+                        Opacity = 0.35
+                    };
+                }
+
+                Grid mainGrid = new Grid();
+                mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+                Grid headerGrid = new Grid();
+                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                string star = isImp ? "⭐ " : "";
+                TitleText = new TextBlock
+                {
+                    Foreground = Brushes.White,
+                    FontFamily = new FontFamily("Microsoft YaHei, Segoe UI"),
+                    FontSize = 14,
+                    FontWeight = System.Windows.FontWeights.Bold,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                    Text = $"{star}[图{PlotIndex}] CH{config.Channel} {config.Name}"
+                };
+                Grid.SetColumn(TitleText, 0);
+                headerGrid.Children.Add(TitleText);
+
+                Button btnToggle = new Button
+                {
+                    Content = "👁️",
+                    Width = 24,
+                    Height = 24,
+                    Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(100, 100, 110)),
+                    Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    Cursor = Cursors.Hand,
+                    VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                    Margin = new Thickness(10, 0, 5, 0),
+                    ToolTip = "临时隐藏/显示该曲线"
+                };
+
+                bool isCurveVisible = true;
+                btnToggle.Click += (s, e) =>
+                {
+                    isCurveVisible = !isCurveVisible;
+                    Logger.IsVisible = isCurveVisible;
+                    btnToggle.Opacity = isCurveVisible ? 1.0 : 0.4;
+                    btnToggle.Content = isCurveVisible ? "👁️" : "❌";
+                    ParentPlot.Refresh();
+                };
+                Grid.SetColumn(btnToggle, 1);
+                headerGrid.Children.Add(btnToggle);
 
                 Button btnDelete = new Button
                 {
@@ -433,34 +629,56 @@ namespace EngineDA.Views
                     Foreground = Brushes.White,
                     BorderThickness = new Thickness(0),
                     Cursor = Cursors.Hand,
-                    VerticalAlignment = System.Windows.VerticalAlignment.Top,
+                    VerticalAlignment = System.Windows.VerticalAlignment.Center,
                     ToolTip = "删除此曲线"
                 };
                 btnDelete.MouseEnter += (s, e) => btnDelete.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 50, 50));
                 btnDelete.MouseLeave += (s, e) => btnDelete.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(200, 50, 50));
                 btnDelete.Click += (s, e) => onDelete(this);
 
-                Grid.SetColumn(btnDelete, 1);
-                layoutContainer.Children.Add(btnDelete);
+                Grid.SetColumn(btnDelete, 2);
+                headerGrid.Children.Add(btnDelete);
 
-                InfoText = new TextBlock
+                Grid.SetRow(headerGrid, 0);
+                mainGrid.Children.Add(headerGrid);
+
+                CurrentValueText = new TextBlock
                 {
-                    Foreground = Brushes.White,
+                    Foreground = isImp ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 215, 0)) : new SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 230, 118)),
                     FontFamily = new FontFamily("Microsoft YaHei, Segoe UI"),
-                    FontSize = 13,
-                    LineHeight = 20,
-                    Text = $"[图表{PlotIndex}] [{config.Channel}] {config.Name}\n 当前: --\n 峰值: --\n 谷底: --\n 原始: -- V"
+                    FontSize = 32,
+                    FontWeight = System.Windows.FontWeights.Black,
+                    Margin = new Thickness(0, 10, 0, 10),
+                    Text = "--"
+                };
+                Grid.SetRow(CurrentValueText, 1);
+                mainGrid.Children.Add(CurrentValueText);
+
+                Viewbox statsViewbox = new Viewbox
+                {
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+                    StretchDirection = StretchDirection.DownOnly 
                 };
 
-                Grid.SetColumn(InfoText, 0);
-                layoutContainer.Children.Add(InfoText);
+                StatsText = new TextBlock
+                {
+                    Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(170, 170, 170)),
+                    FontFamily = new FontFamily("Microsoft YaHei, Segoe UI"),
+                    FontSize = 13,
+                    Text = "峰值: --   谷底: --   原始: -- V"
+                };
 
-                UIPanel.Child = layoutContainer;
+                statsViewbox.Child = StatsText;
+                Grid.SetRow(statsViewbox, 2);
+                mainGrid.Children.Add(statsViewbox);
+
+                UIPanel.Child = mainGrid;
             }
 
             public void UpdateLabelUI(double physVal, double rawVal)
             {
-                InfoText.Text = $"[图表{PlotIndex}] [{Config.Channel}] {Config.Name}\n 当前: {physVal:F3} {Config.Unit}\n 峰值: {PeakMax:F3}\n 谷底: {PeakMin:F3}\n 原始: {rawVal:F3} V";
+                CurrentValueText.Text = $"{physVal:F3} {Config.Unit}";
+                StatsText.Text = $"峰值: {PeakMax:F3}   谷底: {PeakMin:F3}   原始: {rawVal:F3} V";
             }
         }
     }

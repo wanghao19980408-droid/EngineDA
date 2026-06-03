@@ -9,7 +9,6 @@ namespace EngineDA.Models
         [ObservableProperty] private string name = "";
         [ObservableProperty] private int channel;
 
-        // 用于自定义排序的索引值
         [ObservableProperty] private int orderIndex = 0;
 
         private string unit = "";
@@ -23,7 +22,6 @@ namespace EngineDA.Models
             }
         }
 
-        // 【核心修改】统一所有卡片的尺寸，彻底杜绝虚拟化面板带来的裁剪和遮挡问题
         public double CardWidth => 255;
         public double CardHeight => 165;
 
@@ -54,7 +52,8 @@ namespace EngineDA.Models
                 if (u == "m/s") return "🚀 速度";
                 if (u == "mm") return "📏 位移";
                 if (u == "g") return "📳 振动";
-
+                if (u == "KN") return "🗡 推力";
+                if (u == "L/S") return "🐺 流量";
                 return "📁 其他数据";
             }
         }
