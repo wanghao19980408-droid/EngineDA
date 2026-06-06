@@ -6,9 +6,10 @@ namespace EngineDA.Models
 {
     public partial class SensorDisplay : ObservableObject
     {
+        public static double DeadZone = 0.015;
+
         [ObservableProperty] private string name = "";
         [ObservableProperty] private int channel;
-
         [ObservableProperty] private int orderIndex = 0;
 
         private string unit = "";
@@ -57,6 +58,7 @@ namespace EngineDA.Models
                 return "📁 其他数据";
             }
         }
+        private double _lastDisplayedRawVoltage = double.NaN;
 
         private double rawVoltage;
         public double RawVoltage
@@ -65,9 +67,25 @@ namespace EngineDA.Models
             set
             {
                 if (Math.Abs(rawVoltage - value) <= 0.0001) return;
+
                 SetProperty(ref rawVoltage, value);
+
+                if (double.IsNaN(_lastDisplayedRawVoltage))
+                {
+                    _lastDisplayedRawVoltage = value;
+                    OnPropertyChanged(nameof(DisplayValue));
+                }
+                else
+                {
+                    if (Math.Abs(value - _lastDisplayedRawVoltage) > DeadZone)
+                    {
+                        _lastDisplayedRawVoltage = value;
+                        OnPropertyChanged(nameof(DisplayValue));
+                    }
+                }
+
                 OnPropertyChanged(nameof(Value));
-                OnValueChanged();
+                ValueChanged?.Invoke(this, EventArgs.Empty);
             }
         }
 
@@ -77,23 +95,23 @@ namespace EngineDA.Models
         {
             get
             {
+                double displayPhysicalValue = Kvalue * _lastDisplayedRawVoltage + Bvalue;
+
+                if (double.IsNaN(displayPhysicalValue))
+                    displayPhysicalValue = Value;
+
                 string u = Unit?.Trim() ?? "";
                 if (u == "RPM" || u == "r/min")
                 {
-                    return Math.Truncate(Value).ToString("#,##0");
+                    return Math.Truncate(displayPhysicalValue).ToString("#,##0");
                 }
-                double truncatedValue = Math.Truncate(Value * 100.0) / 100.0;
+
+                double truncatedValue = Math.Truncate(displayPhysicalValue * 100.0) / 100.0;
                 return truncatedValue.ToString("0.00");
             }
         }
 
         public event EventHandler? ValueChanged;
-
-        protected virtual void OnValueChanged()
-        {
-            ValueChanged?.Invoke(this, EventArgs.Empty);
-            OnPropertyChanged(nameof(DisplayValue));
-        }
 
         private bool isAbnormal;
         public bool IsAbnormal

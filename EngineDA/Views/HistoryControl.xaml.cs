@@ -16,7 +16,7 @@ namespace EngineDA.Views
 {
     public class ChannelData
     {
-        public double[] Values { get; set; }
+        public double[]? Values { get; set; }
         public double SampleRate { get; set; }
         public double Period { get { return 1.0 / SampleRate; } }
     }
@@ -169,7 +169,8 @@ namespace EngineDA.Views
             string iniPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Config.ini");
             bool isFilterEnabled = EngineDA.Helpers.IniConfigHelper.ReadIniData("HistoryFilter", "Enabled", "False", iniPath).Equals("True", StringComparison.OrdinalIgnoreCase);
 
-            int windowSize = int.Parse(EngineDA.Helpers.IniConfigHelper.ReadIniData("HistoryFilter", "WindowSize", "10", iniPath));
+            int windowSize20k = int.Parse(EngineDA.Helpers.IniConfigHelper.ReadIniData("HistoryFilter", "WindowSize20k", "1000", iniPath));
+            int windowSize1k = int.Parse(EngineDA.Helpers.IniConfigHelper.ReadIniData("HistoryFilter", "WindowSize1k", "500", iniPath));
 
             System.Threading.Tasks.Parallel.For(0, numChannels, ch =>
             {
@@ -181,7 +182,11 @@ namespace EngineDA.Views
 
                 if (isFilterEnabled)
                 {
-                    vals = ApplyHampelFilter(vals, windowSize);
+                    int actualWindowSize = (sampleRate <= 1000) ? windowSize1k : windowSize20k;
+
+                    if (actualWindowSize < 3) actualWindowSize = 3;
+
+                    vals = ApplyHampelFilter(vals, actualWindowSize);
                 }
 
                 _channelData[startChannelOffset + ch] = new ChannelData

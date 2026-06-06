@@ -29,28 +29,36 @@ namespace EngineDA.Views
             string enabledStr = IniConfigHelper.ReadIniData("HistoryFilter", "Enabled", "False", iniPath);
             chkEnableFilter.IsChecked = enabledStr.Equals("True", StringComparison.OrdinalIgnoreCase);
 
-            txtWindowSize.Text = IniConfigHelper.ReadIniData("HistoryFilter", "WindowSize", "10", iniPath);
-            txtTrimCount.Text = IniConfigHelper.ReadIniData("HistoryFilter", "TrimCount", "2", iniPath);
+            txtWindowSize20k.Text = IniConfigHelper.ReadIniData("HistoryFilter", "WindowSize20k", "1000", iniPath);
+            txtWindowSize1k.Text = IniConfigHelper.ReadIniData("HistoryFilter", "WindowSize1k", "500", iniPath);
+
+            txtDeadZone.Text = IniConfigHelper.ReadIniData("Display", "DeadZone", "0.015", iniPath);
         }
 
         private void BtnSave_Click(object sender, RoutedEventArgs e)
         {
-            if (!int.TryParse(txtWindowSize.Text, out int windowSize) || !int.TryParse(txtTrimCount.Text, out int trimCount))
+            if (!int.TryParse(txtWindowSize20k.Text, out int win20k) || !int.TryParse(txtWindowSize1k.Text, out int win1k))
             {
-                MessageBox.Show("参数必须为整数！");
+                MessageBox.Show("滤波窗口参数必须为有效整数！");
                 return;
             }
-            if (windowSize <= trimCount * 2)
+
+            if (!double.TryParse(txtDeadZone.Text, out double deadZone))
             {
-                MessageBox.Show("窗口大小必须大于剔除个数的 2 倍！");
+                MessageBox.Show("死区参数必须为有效数字！(例如 0.015)");
                 return;
             }
 
             IniConfigHelper.WriteIniData("HistoryFilter", "Enabled", chkEnableFilter.IsChecked == true ? "True" : "False", iniPath);
-            IniConfigHelper.WriteIniData("HistoryFilter", "WindowSize", windowSize.ToString(), iniPath);
-            IniConfigHelper.WriteIniData("HistoryFilter", "TrimCount", trimCount.ToString(), iniPath);
 
-            var dialog = new ConfirmDialog("滤波配置已保存！下次加载历史文件时将自动生效。");
+            IniConfigHelper.WriteIniData("HistoryFilter", "WindowSize20k", win20k.ToString(), iniPath);
+            IniConfigHelper.WriteIniData("HistoryFilter", "WindowSize1k", win1k.ToString(), iniPath);
+
+            IniConfigHelper.WriteIniData("Display", "DeadZone", deadZone.ToString(), iniPath);
+
+            EngineDA.Models.SensorDisplay.DeadZone = deadZone;
+
+            var dialog = new ConfirmDialog("配置已保存！");
             dialog.ShowDialog();
             Close();
         }

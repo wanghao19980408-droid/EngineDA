@@ -32,7 +32,9 @@ namespace EngineDA.Views
         private int _renderTickCount = 0;
         private long _lastMouseMoveRender = 0;
 
+#pragma warning disable CS8618 // 在退出构造函数时，不可为 null 的字段必须包含非 null 值。请考虑添加 "required" 修饰符或声明为可为 null。
         public TrendsControl()
+#pragma warning restore CS8618 // 在退出构造函数时，不可为 null 的字段必须包含非 null 值。请考虑添加 "required" 修饰符或声明为可为 null。
         {
             InitializeComponent();
             Loaded += OnLoaded;
@@ -309,10 +311,20 @@ namespace EngineDA.Views
                 System.Windows.Media.Colors.Yellow,
                 System.Windows.Media.Colors.Magenta,
                 System.Windows.Media.Colors.Orange,
-                System.Windows.Media.Colors.LightPink
+                System.Windows.Media.Colors.LightPink,
+                System.Windows.Media.Colors.DodgerBlue,    
+                System.Windows.Media.Colors.SpringGreen,   
+                System.Windows.Media.Colors.Gold,          
+                System.Windows.Media.Colors.Coral,         
+                System.Windows.Media.Colors.HotPink,       
+                System.Windows.Media.Colors.Turquoise,     
+                System.Windows.Media.Colors.MediumPurple,  
+                System.Windows.Media.Colors.White,         
+                System.Windows.Media.Colors.Tomato         
             };
             var current = ((SolidColorBrush)BtnChangeColor.Background).Color;
             int idx = Array.IndexOf(colors, current);
+            if (idx == -1) idx = 0;
             BtnChangeColor.Background = new SolidColorBrush(colors[(idx + 1) % colors.Length]);
         }
 
@@ -424,7 +436,7 @@ namespace EngineDA.Views
             {
                 var layoutList = _activeChannels.Values.Select(ch =>
                 {
-                    var color = ((SolidColorBrush)ch.UIPanel.BorderBrush).Color;
+                    var color = ((SolidColorBrush)((System.Windows.Shapes.Ellipse)((Grid)((Grid)ch.UIPanel.Child).Children[0]).Children[0]).Fill).Color;
                     return new LayoutConfigItem
                     {
                         Channel = ch.Config.Channel,
@@ -576,9 +588,22 @@ namespace EngineDA.Views
                 mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
                 Grid headerGrid = new Grid();
+                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); 
                 headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                System.Windows.Shapes.Ellipse colorIndicator = new System.Windows.Shapes.Ellipse
+                {
+                    Width = 12,
+                    Height = 12,
+                    Fill = color,
+                    Margin = new Thickness(0, 0, 8, 0),
+                    VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                    ToolTip = "该通道在图表中的实际曲线颜色"
+                };
+                Grid.SetColumn(colorIndicator, 0);
+                headerGrid.Children.Add(colorIndicator);
 
                 string star = isImp ? "⭐ " : "";
                 TitleText = new TextBlock
@@ -591,7 +616,7 @@ namespace EngineDA.Views
                     VerticalAlignment = System.Windows.VerticalAlignment.Center,
                     Text = $"{star}[图{PlotIndex}] CH{config.Channel} {config.Name}"
                 };
-                Grid.SetColumn(TitleText, 0);
+                Grid.SetColumn(TitleText, 1);
                 headerGrid.Children.Add(TitleText);
 
                 Button btnToggle = new Button
@@ -617,7 +642,7 @@ namespace EngineDA.Views
                     btnToggle.Content = isCurveVisible ? "👁️" : "❌";
                     ParentPlot.Refresh();
                 };
-                Grid.SetColumn(btnToggle, 1);
+                Grid.SetColumn(btnToggle, 2);
                 headerGrid.Children.Add(btnToggle);
 
                 Button btnDelete = new Button
@@ -636,7 +661,7 @@ namespace EngineDA.Views
                 btnDelete.MouseLeave += (s, e) => btnDelete.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(200, 50, 50));
                 btnDelete.Click += (s, e) => onDelete(this);
 
-                Grid.SetColumn(btnDelete, 2);
+                Grid.SetColumn(btnDelete, 3);
                 headerGrid.Children.Add(btnDelete);
 
                 Grid.SetRow(headerGrid, 0);
@@ -657,7 +682,7 @@ namespace EngineDA.Views
                 Viewbox statsViewbox = new Viewbox
                 {
                     HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
-                    StretchDirection = StretchDirection.DownOnly 
+                    StretchDirection = StretchDirection.DownOnly
                 };
 
                 StatsText = new TextBlock

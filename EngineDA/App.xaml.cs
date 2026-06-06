@@ -26,6 +26,12 @@ namespace EngineDA
 
             string iniPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Config.ini");
             EngineDA.Helpers.IniConfigHelper.FilePath = iniPath;
+
+            string dzStr = EngineDA.Helpers.IniConfigHelper.ReadIniData("Display", "DeadZone", "0.015", iniPath);
+            if (double.TryParse(dzStr, out double dz))
+            {
+                EngineDA.Models.SensorDisplay.DeadZone = dz;
+            }
         }
     }
 }
