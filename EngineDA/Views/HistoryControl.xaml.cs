@@ -118,13 +118,32 @@ namespace EngineDA.Views
 
                 string[] orderedFiles = { fileBid0, fileBid1, fileBid2, fileBid3 };
 
-                TxtStatus.Text = "请稍候。";
+                TxtStatus.Text = "准备解析...";
+                ParseProgressBar.Value = 0;
+                ParseProgressBar.Visibility = Visibility.Visible;
                 SensorListBox.IsEnabled = false;
+
+                var progress = new Progress<int>(percent =>
+                {
+                    ParseProgressBar.Value = percent;
+                    if (percent <= 60)
+                    {
+                        TxtStatus.Text = $"正在读取与解析原始文件... {percent}%";
+                    }
+                    else if (percent < 100)
+                    {
+                        TxtStatus.Text = $"正在对数据进行处理... {percent}%";
+                    }
+                    else
+                    {
+                        TxtStatus.Text = "数据处理完成，正在渲染图表...";
+                    }
+                });
 
                 try
                 {
-                    await Task.Run(() => ParseAndMergeHighFrequencyData(orderedFiles));
-                    TxtStatus.Text = $"解析完毕！";
+                    await Task.Run(() => ParseAndMergeHighFrequencyData(orderedFiles, progress));
+                    TxtStatus.Text = "解析与渲染完毕！";
                 }
                 catch (Exception ex)
                 {
@@ -133,24 +152,27 @@ namespace EngineDA.Views
                 }
                 finally
                 {
+                    await Task.Delay(500); 
+                    ParseProgressBar.Visibility = Visibility.Collapsed;
                     SensorListBox.IsEnabled = true;
                 }
             }
         }
 
-        private void ParseAndMergeHighFrequencyData(string[] orderedFiles)
+        private void ParseAndMergeHighFrequencyData(string[] orderedFiles, IProgress<int> progress)
         {
-            ParsedFile data0 = ExtractAllNumbersFast(orderedFiles[0]);
-            ParsedFile data1 = ExtractAllNumbersFast(orderedFiles[1]);
-            ParsedFile data2 = ExtractAllNumbersFast(orderedFiles[2]);
-            ParsedFile data3 = ExtractAllNumbersFast(orderedFiles[3]);
+            progress.Report(1);
+            ParsedFile data0 = ExtractAllNumbersFast(orderedFiles[0], progress, 1, 15);
+            ParsedFile data1 = ExtractAllNumbersFast(orderedFiles[1], progress, 15, 30);
+            ParsedFile data2 = ExtractAllNumbersFast(orderedFiles[2], progress, 30, 45);
+            ParsedFile data3 = ExtractAllNumbersFast(orderedFiles[3], progress, 45, 60);
 
             _channelData = new ChannelData[224];
 
-            ProcessCardData(data0, 32, 0, 20000.0); // 20kHz
-            ProcessCardData(data1, 64, 32, 1000.0); // 1kHz
-            ProcessCardData(data2, 64, 96, 1000.0); // 1kHz
-            ProcessCardData(data3, 64, 160, 1000.0); // 1kHz
+            ProcessCardData(data0, 32, 0, 20000.0, progress, 60, 70); // 20kHz
+            ProcessCardData(data1, 64, 32, 1000.0, progress, 70, 80); // 1kHz
+            ProcessCardData(data2, 64, 96, 1000.0, progress, 80, 90); // 1kHz
+            ProcessCardData(data3, 64, 160, 1000.0, progress, 90, 100); // 1kHz
 
             Application.Current.Dispatcher.Invoke(() =>
             {
@@ -160,17 +182,20 @@ namespace EngineDA.Views
             });
         }
 
-        private void ProcessCardData(ParsedFile data, int numChannels, int startChannelOffset, double sampleRate)
+        private void ProcessCardData(ParsedFile data, int numChannels, int startChannelOffset, double sampleRate, IProgress<int> progress, int startPercent, int endPercent)
         {
-            if (data.Values.Count == 0) return;
+            if (data.Values.Count == 0) { progress.Report(endPercent); return; }
             int count = data.Values.Count / numChannels;
-            if (count == 0) return;
+            if (count == 0) { progress.Report(endPercent); return; }
 
             string iniPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Config.ini");
             bool isFilterEnabled = EngineDA.Helpers.IniConfigHelper.ReadIniData("HistoryFilter", "Enabled", "False", iniPath).Equals("True", StringComparison.OrdinalIgnoreCase);
 
             int windowSize20k = int.Parse(EngineDA.Helpers.IniConfigHelper.ReadIniData("HistoryFilter", "WindowSize20k", "1000", iniPath));
             int windowSize1k = int.Parse(EngineDA.Helpers.IniConfigHelper.ReadIniData("HistoryFilter", "WindowSize1k", "500", iniPath));
+
+            int completedChannels = 0;
+            object lockObj = new object();
 
             System.Threading.Tasks.Parallel.For(0, numChannels, ch =>
             {
@@ -194,7 +219,15 @@ namespace EngineDA.Views
                     Values = vals,
                     SampleRate = sampleRate
                 };
+
+                lock (lockObj)
+                {
+                    completedChannels++;
+                    int currentPercent = startPercent + (completedChannels * (endPercent - startPercent) / numChannels);
+                    progress.Report(currentPercent);
+                }
             });
+            progress.Report(endPercent);
         }
 
         private double[] ApplyHampelFilter(double[] src, int windowSize)
@@ -207,7 +240,7 @@ namespace EngineDA.Views
             var win = new double[windowSize + 4];
             var deviations = new double[windowSize + 4];
 
-            double thresholdFactor = 3.0; 
+            double thresholdFactor = 3.0;
 
             for (int i = 0; i < n; i++)
             {
@@ -239,20 +272,26 @@ namespace EngineDA.Views
                 }
                 else
                 {
-                    dst[i] = src[i]; 
+                    dst[i] = src[i];
                 }
             }
             return dst;
         }
 
-        private ParsedFile ExtractAllNumbersFast(string filePath)
+        private ParsedFile ExtractAllNumbersFast(string filePath, IProgress<int> progress, int startPercent, int endPercent)
         {
             ParsedFile pf = new ParsedFile();
+            long totalLength = new FileInfo(filePath).Length;
+
             using (StreamReader sr = new StreamReader(filePath))
             {
                 string line;
+                long bytesRead = 0;
+                int lastReported = startPercent;
+
                 while ((line = sr.ReadLine()) != null)
                 {
+                    bytesRead += line.Length + 2;
                     if (string.IsNullOrWhiteSpace(line)) continue;
                     var parts = line.Split(new char[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
                     foreach (var part in parts)
@@ -260,8 +299,19 @@ namespace EngineDA.Views
                         if (part.StartsWith("[")) continue;
                         if (double.TryParse(part, out double val)) pf.Values.Add(val);
                     }
+
+                    if (totalLength > 0)
+                    {
+                        int currentPercent = startPercent + (int)(bytesRead * (endPercent - startPercent) / totalLength);
+                        if (currentPercent > lastReported && currentPercent <= endPercent)
+                        {
+                            progress.Report(currentPercent);
+                            lastReported = currentPercent;
+                        }
+                    }
                 }
             }
+            progress.Report(endPercent);
             return pf;
         }
 

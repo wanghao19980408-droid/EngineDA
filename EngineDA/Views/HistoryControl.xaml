@@ -81,12 +81,23 @@
                     Padding="12"
                     Background="{DynamicResource SecondaryRegionBrush}"
                     CornerRadius="4">
-                    <TextBlock
-                        x:Name="TxtStatus"
-                        Foreground="{DynamicResource PrimaryTextBrush}"
-                        LineHeight="20"
-                        Text="正在加载系统配置..."
-                        TextWrapping="Wrap" />
+                    <StackPanel>
+                        <TextBlock
+                            x:Name="TxtStatus"
+                            Foreground="{DynamicResource PrimaryTextBrush}"
+                            LineHeight="20"
+                            Text="正在加载系统配置..."
+                            TextWrapping="Wrap" />
+                        <ProgressBar
+                            x:Name="ParseProgressBar"
+                            Height="20"
+                            Margin="0,8,0,0"
+                            Background="#1A1A1F"
+                            BorderThickness="0"
+                            Foreground="#007ACC"
+                            Maximum="100"
+                            Visibility="Collapsed" />
+                    </StackPanel>
                 </Border>
 
                 <hc:Divider
@@ -253,6 +264,7 @@
                             FontWeight="Bold"
                             Foreground="#00E676"
                             Text="当前时刻: -- 秒" />
+
                         <Slider
                             x:Name="TimeSlider"
                             Cursor="Hand"
