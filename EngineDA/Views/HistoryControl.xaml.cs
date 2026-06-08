@@ -128,11 +128,11 @@ namespace EngineDA.Views
                     ParseProgressBar.Value = percent;
                     if (percent <= 60)
                     {
-                        TxtStatus.Text = $"正在读取与解析原始文件... {percent}%";
+                        TxtStatus.Text = $"正在读取与解析原始文件...";
                     }
                     else if (percent < 100)
                     {
-                        TxtStatus.Text = $"正在对数据进行处理... {percent}%";
+                        TxtStatus.Text = $"正在对数据进行处理...";
                     }
                     else
                     {
@@ -375,7 +375,7 @@ namespace EngineDA.Views
 
             _timeLine.X = xSec;
 
-            if (TxtSliderTime != null) TxtSliderTime.Text = $"当前时刻: {xSec:F4} 秒";
+            if (TxtSliderTime != null) TxtSliderTime.Text = $"当前时刻: {xSec:F2} 秒";
 
             _cursorItems.Clear();
 
@@ -409,7 +409,7 @@ namespace EngineDA.Views
         {
             if (Keyboard.FocusedElement is TextBox) return;
 
-            double step = (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)) ? 1.0 : 0.001;
+            double step = (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)) ? 0.5 : 0.01;
 
             if (e.Key == Key.Left)
             {
