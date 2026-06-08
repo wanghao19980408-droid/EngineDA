@@ -32,9 +32,9 @@ namespace EngineDA.Views
         private int _renderTickCount = 0;
         private long _lastMouseMoveRender = 0;
 
-#pragma warning disable CS8618 // 在退出构造函数时，不可为 null 的字段必须包含非 null 值。请考虑添加 "required" 修饰符或声明为可为 null。
+#pragma warning disable CS8618 
         public TrendsControl()
-#pragma warning restore CS8618 // 在退出构造函数时，不可为 null 的字段必须包含非 null 值。请考虑添加 "required" 修饰符或声明为可为 null。
+#pragma warning restore CS8618 
         {
             InitializeComponent();
             Loaded += OnLoaded;
@@ -249,7 +249,8 @@ namespace EngineDA.Views
                     if (timeDiffDays < TimeSpan.FromSeconds(0.5).TotalDays)
                     {
                         closestTimeOA = closest.TimeOA;
-                        tooltipText += $"■ {ch.Config.Name}: {closest.Value:F3} {ch.Config.Unit}\n";
+                        // 这里修改为 Config.CurrentUnit 以支持自动单位切换
+                        tooltipText += $"■ {ch.Config.Name}: {closest.Value:F3} {ch.Config.CurrentUnit}\n";
                         hasData = true;
                     }
                 }
@@ -312,15 +313,15 @@ namespace EngineDA.Views
                 System.Windows.Media.Colors.Magenta,
                 System.Windows.Media.Colors.Orange,
                 System.Windows.Media.Colors.LightPink,
-                System.Windows.Media.Colors.DodgerBlue,    
-                System.Windows.Media.Colors.SpringGreen,   
-                System.Windows.Media.Colors.Gold,          
-                System.Windows.Media.Colors.Coral,         
-                System.Windows.Media.Colors.HotPink,       
-                System.Windows.Media.Colors.Turquoise,     
-                System.Windows.Media.Colors.MediumPurple,  
-                System.Windows.Media.Colors.White,         
-                System.Windows.Media.Colors.Tomato         
+                System.Windows.Media.Colors.DodgerBlue,
+                System.Windows.Media.Colors.SpringGreen,
+                System.Windows.Media.Colors.Gold,
+                System.Windows.Media.Colors.Coral,
+                System.Windows.Media.Colors.HotPink,
+                System.Windows.Media.Colors.Turquoise,
+                System.Windows.Media.Colors.MediumPurple,
+                System.Windows.Media.Colors.White,
+                System.Windows.Media.Colors.Tomato
             };
             var current = ((SolidColorBrush)BtnChangeColor.Background).Color;
             int idx = Array.IndexOf(colors, current);
@@ -588,7 +589,7 @@ namespace EngineDA.Views
                 mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
                 Grid headerGrid = new Grid();
-                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); 
+                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -702,7 +703,7 @@ namespace EngineDA.Views
 
             public void UpdateLabelUI(double physVal, double rawVal)
             {
-                CurrentValueText.Text = $"{physVal:F3} {Config.Unit}";
+                CurrentValueText.Text = $"{physVal:F3} {Config.CurrentUnit}";
                 StatsText.Text = $"峰值: {PeakMax:F3}   谷底: {PeakMin:F3}   原始: {rawVal:F3} V";
             }
         }

@@ -1,4 +1,5 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using System;
 using System.Windows.Media;
 
@@ -20,7 +21,58 @@ namespace EngineDA.Models
             {
                 SetProperty(ref unit, value);
                 OnPropertyChanged(nameof(DisplayGroup));
+                OnPropertyChanged(nameof(IsTemperatureSensor));
+                OnPropertyChanged(nameof(CurrentUnit));
             }
+        }
+
+        public bool IsTemperatureSensor
+        {
+            get
+            {
+                string u = Unit?.Trim() ?? "";
+                return u == "℃" || u == "°C" || u == "K";
+            }
+        }
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CurrentUnit))]
+        [NotifyPropertyChangedFor(nameof(DisplayValue))]
+        [NotifyPropertyChangedFor(nameof(Value))]
+        private bool showAsKelvin;
+
+        public string CurrentUnit
+        {
+            get
+            {
+                if (!IsTemperatureSensor) return Unit;
+                return ShowAsKelvin ? "K" : "℃";
+            }
+        }
+
+        [RelayCommand]
+        public void ToggleUnit()
+        {
+            if (IsTemperatureSensor)
+            {
+                ShowAsKelvin = !ShowAsKelvin;
+            }
+        }
+
+        private double CalculatePhysicalValue(double raw)
+        {
+            double val = Kvalue * raw + Bvalue;
+            if (IsTemperatureSensor)
+            {
+                string u = Unit?.Trim() ?? "";
+                bool isOriginallyKelvin = u == "K";
+
+                if (isOriginallyKelvin && !ShowAsKelvin)
+                    val -= 273.15;
+                else if (!isOriginallyKelvin && ShowAsKelvin)
+                    val += 273.15;
+            }
+            return val;
         }
 
         public double CardWidth => 255;
@@ -63,7 +115,10 @@ namespace EngineDA.Models
         private double rawVoltage;
         public double RawVoltage
         {
-            get => rawVoltage;
+            get
+            {
+                return rawVoltage;
+            }
             set
             {
                 if (Math.Abs(rawVoltage - value) <= 0.0001) return;
@@ -89,13 +144,13 @@ namespace EngineDA.Models
             }
         }
 
-        public double Value => Kvalue * RawVoltage + Bvalue;
+        public double Value => CalculatePhysicalValue(RawVoltage);
 
         public string DisplayValue
         {
             get
             {
-                double displayPhysicalValue = Kvalue * _lastDisplayedRawVoltage + Bvalue;
+                double displayPhysicalValue = CalculatePhysicalValue(_lastDisplayedRawVoltage);
 
                 if (double.IsNaN(displayPhysicalValue))
                     displayPhysicalValue = Value;
@@ -106,8 +161,10 @@ namespace EngineDA.Models
                     return Math.Truncate(displayPhysicalValue).ToString("#,##0");
                 }
 
-                double truncatedValue = Math.Truncate(displayPhysicalValue * 100.0) / 100.0;
-                return truncatedValue.ToString("0.00");
+                double roundedValue = Math.Round(displayPhysicalValue, 2, MidpointRounding.AwayFromZero);
+                return roundedValue.ToString("0.00");
+
+   
             }
         }
 
