@@ -35,9 +35,9 @@ namespace EngineDA.Views
 
     public partial class HistoryControl : UserControl
     {
-        private ChannelData[] _channelData;
+        private ChannelData[]? _channelData; 
         private List<SensorConfig> _sensorConfigs = new List<SensorConfig>();
-        private ScottPlot.Plottables.VerticalLine _timeLine;
+        private ScottPlot.Plottables.VerticalLine? _timeLine;
         private ObservableCollection<CursorItem> _cursorItems = new ObservableCollection<CursorItem>();
 
         public HistoryControl()
@@ -57,7 +57,7 @@ namespace EngineDA.Views
         {
             if (_channelData != null && SensorListBox.SelectedItems.Count > 0)
             {
-                SensorListBox_SelectionChanged(null, null);
+                SensorListBox_SelectionChanged(this, null!);
             }
         }
 
@@ -105,10 +105,10 @@ namespace EngineDA.Views
             if (openFileDialog.ShowDialog() == true)
             {
                 var filePaths = openFileDialog.FileNames;
-                string fileBid0 = filePaths.FirstOrDefault(f => f.Contains("BID#0"));
-                string fileBid1 = filePaths.FirstOrDefault(f => f.Contains("BID#1"));
-                string fileBid2 = filePaths.FirstOrDefault(f => f.Contains("BID#2"));
-                string fileBid3 = filePaths.FirstOrDefault(f => f.Contains("BID#3"));
+                string? fileBid0 = filePaths.FirstOrDefault(f => f.Contains("BID#0"));
+                string? fileBid1 = filePaths.FirstOrDefault(f => f.Contains("BID#1"));
+                string? fileBid2 = filePaths.FirstOrDefault(f => f.Contains("BID#2"));
+                string? fileBid3 = filePaths.FirstOrDefault(f => f.Contains("BID#3"));
 
                 if (fileBid0 == null || fileBid1 == null || fileBid2 == null || fileBid3 == null)
                 {
@@ -157,7 +157,7 @@ namespace EngineDA.Views
                 }
                 finally
                 {
-                    await Task.Delay(500); 
+                    await Task.Delay(500);
                     ParseProgressBar.Visibility = Visibility.Collapsed;
                     SensorListBox.IsEnabled = true;
                 }
@@ -221,8 +221,7 @@ namespace EngineDA.Views
                     if (actualWindowSize < 3) actualWindowSize = 3;
                     vals = ApplyHampelFilter(vals, actualWindowSize);
                 }
-
-                _channelData[startChannelOffset + ch] = new ChannelData
+                _channelData![startChannelOffset + ch] = new ChannelData
                 {
                     Values = vals,
                     SampleRate = sampleRate
@@ -293,7 +292,7 @@ namespace EngineDA.Views
 
             using (StreamReader sr = new StreamReader(filePath))
             {
-                string line;
+                string? line;
                 long bytesRead = 0;
                 int lastReported = startPercent;
 
@@ -323,7 +322,7 @@ namespace EngineDA.Views
             return pf;
         }
 
-        private void SensorListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void SensorListBox_SelectionChanged(object? sender, SelectionChangedEventArgs? e)
         {
             if (_channelData == null) return;
 
@@ -338,6 +337,9 @@ namespace EngineDA.Views
                 if (config.Channel >= 0 && config.Channel < 224 && _channelData[config.Channel] != null)
                 {
                     var chData = _channelData[config.Channel];
+
+                    if (chData.Values == null) continue;
+
                     int n = chData.Values.Length;
                     double[] ys = new double[n];
                     for (int i = 0; i < n; i++)
@@ -350,7 +352,7 @@ namespace EngineDA.Views
                     sig.Data.XOffset = currentStartTime;
 
                     string unitStr = string.IsNullOrEmpty(config.Unit) ? "" : $" ({config.Unit})";
-                    sig.Label = $"{config.Name}{unitStr} [CH:{config.Channel}]";
+                    sig.LegendText = $"{config.Name}{unitStr} [CH:{config.Channel}]";
 
                     double currentChannelMaxTime = currentStartTime + (n - 1) * chData.Period;
                     if (currentChannelMaxTime > maxTimeForSlider)
@@ -394,6 +396,9 @@ namespace EngineDA.Views
                     if (config.Channel >= 0 && config.Channel < 224 && _channelData[config.Channel] != null)
                     {
                         var chData = _channelData[config.Channel];
+
+                        if (chData.Values == null) continue; // [修改] 判空，修复 CS8602 警告
+
                         int xIndex = (int)Math.Round(timeFromStart * chData.SampleRate);
 
                         if (xIndex >= 0 && xIndex < chData.Values.Length)
@@ -402,7 +407,7 @@ namespace EngineDA.Views
 
                             _cursorItems.Add(new CursorItem
                             {
-                                Name = config.Name,
+                                Name = config.Name ?? "未知", // [修改] 处理可能为null，修复 CS8601
                                 ChannelInfo = $"[CH:{config.Channel}]",
                                 Value = $"{physicalVal:F3} {config.Unit}"
                             });

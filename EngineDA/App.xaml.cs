@@ -6,7 +6,7 @@ namespace EngineDA
 {
     public partial class App : Application
     {
-        private static Mutex _appMutex;
+        private static Mutex? _appMutex;
 
         protected override void OnStartup(StartupEventArgs e)
         {

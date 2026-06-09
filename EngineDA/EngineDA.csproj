@@ -49,4 +49,8 @@
     <Resource Include="Assets\Images\worldCup.ico" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Assets\Styles\" />
+  </ItemGroup>
+
 </Project>

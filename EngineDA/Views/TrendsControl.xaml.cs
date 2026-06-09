@@ -400,7 +400,7 @@ namespace EngineDA.Views
             BtnFreeze.Foreground = new SolidColorBrush(_isFrozen ? System.Windows.Media.Colors.White : System.Windows.Media.Colors.Black);
         }
 
-        private void BtnClear_Click(object sender, RoutedEventArgs e)
+        private void BtnClear_Click(object? sender, RoutedEventArgs? e)
         {
             foreach (var ch in _activeChannels.Values)
             {
@@ -472,7 +472,7 @@ namespace EngineDA.Views
                 var layoutList = JsonSerializer.Deserialize<List<LayoutConfigItem>>(json);
                 if (layoutList == null || _dashboardVM == null) return;
 
-                BtnClear_Click(null, null);
+                BtnClear_Click(this, null!);
 
                 foreach (var item in layoutList)
                 {
