@@ -142,7 +142,12 @@ namespace EngineDA.Views
 
                 try
                 {
-                    await Task.Run(() => ParseAndMergeHighFrequencyData(orderedFiles, progress));
+                    await Task.Run(() =>
+                    {
+                        System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.Lowest;
+
+                        ParseAndMergeHighFrequencyData(orderedFiles, progress);
+                    });
                     TxtStatus.Text = "解析与渲染完毕！";
                 }
                 catch (Exception ex)
@@ -197,7 +202,12 @@ namespace EngineDA.Views
             int completedChannels = 0;
             object lockObj = new object();
 
-            System.Threading.Tasks.Parallel.For(0, numChannels, ch =>
+            var parallelOptions = new ParallelOptions
+            {
+                MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount > 4 ? Environment.ProcessorCount - 3 : 1)
+            };
+
+            System.Threading.Tasks.Parallel.For(0, numChannels, parallelOptions, ch =>
             {
                 double[] vals = new double[count];
                 for (int i = 0; i < count; i++)
@@ -208,9 +218,7 @@ namespace EngineDA.Views
                 if (isFilterEnabled)
                 {
                     int actualWindowSize = (sampleRate <= 1000) ? windowSize1k : windowSize20k;
-
                     if (actualWindowSize < 3) actualWindowSize = 3;
-
                     vals = ApplyHampelFilter(vals, actualWindowSize);
                 }
 
