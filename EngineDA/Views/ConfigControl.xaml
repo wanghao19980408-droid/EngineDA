@@ -7,33 +7,51 @@
     VerticalAlignment="Stretch"
     Background="#1E1E24">
 
+    <UserControl.Resources>
+        <Style x:Key="CenterAlignedTextBlock" TargetType="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Padding" Value="5,0" />
+        </Style>
+        <Style x:Key="CenterAlignedTextBox" TargetType="TextBox">
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="#1A1A1F" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="#007ACC" />
+            <Setter Property="Padding" Value="5,0" />
+        </Style>
+    </UserControl.Resources>
+
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="60" />
+            <RowDefinition Height="70" />
         </Grid.RowDefinitions>
 
         <StackPanel
             Grid.Row="0"
-            Margin="0,0,0,15"
+            Margin="5,0,0,20"
             Orientation="Horizontal">
+            <Border
+                Width="4"
+                Height="22"
+                Margin="0,0,12,0"
+                Background="#007ACC"
+                CornerRadius="2" />
             <TextBlock
-                Margin="0,0,10,0"
                 VerticalAlignment="Center"
                 FontSize="22"
-                Text="⚙️" />
+                FontWeight="Black"
+                Foreground="#FFFFFF"
+                Text="传感器参数配置中心" />
             <TextBlock
-                VerticalAlignment="Center"
-                FontSize="20"
-                FontWeight="Bold"
-                Foreground="#E0E0E0"
-                Text="传感器参数配置" />
-            <TextBlock
-                Margin="15,0,0,2"
+                Margin="15,0,0,3"
                 VerticalAlignment="Bottom"
                 FontSize="13"
-                Foreground="#888888" />
+                Foreground="#888888"
+                Text="在此处修改通道映射、量程、颜色及重点关注项，双击单元格即可编辑。" />
         </StackPanel>
 
         <Border
@@ -41,9 +59,17 @@
             Background="#25252D"
             BorderBrush="#33333C"
             BorderThickness="1"
-            CornerRadius="8">
+            CornerRadius="10">
+            <Border.Effect>
+                <DropShadowEffect
+                    BlurRadius="15"
+                    Opacity="0.2"
+                    ShadowDepth="5"
+                    Color="Black" />
+            </Border.Effect>
+
             <TabControl
-                Margin="10"
+                Margin="15"
                 Background="Transparent"
                 BorderThickness="0"
                 ItemsSource="{Binding Sheets}">
@@ -51,17 +77,17 @@
                 <TabControl.ItemContainerStyle>
                     <Style TargetType="TabItem">
                         <Setter Property="Background" Value="Transparent" />
-                        <Setter Property="Foreground" Value="#888888" />
+                        <Setter Property="Foreground" Value="#A0A0A0" />
                         <Setter Property="Cursor" Value="Hand" />
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="TabItem">
                                     <Border
                                         x:Name="border"
-                                        Margin="0,0,8,10"
-                                        Padding="20,10"
+                                        Margin="0,0,10,15"
+                                        Padding="25,12"
                                         Background="{TemplateBinding Background}"
-                                        CornerRadius="6">
+                                        CornerRadius="8">
                                         <ContentPresenter
                                             HorizontalAlignment="Center"
                                             VerticalAlignment="Center"
@@ -69,7 +95,7 @@
                                     </Border>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="border" Property="Background" Value="#2A2A35" />
+                                            <Setter TargetName="border" Property="Background" Value="#2E2E38" />
                                             <Setter Property="Foreground" Value="#E0E0E0" />
                                         </Trigger>
                                         <Trigger Property="IsSelected" Value="True">
@@ -86,7 +112,7 @@
                 <TabControl.ItemTemplate>
                     <DataTemplate>
                         <TextBlock
-                            FontSize="15"
+                            FontSize="16"
                             FontWeight="Bold"
                             Text="{Binding SheetName}" />
                     </DataTemplate>
@@ -96,34 +122,43 @@
                     <DataTemplate>
                         <DataGrid
                             Margin="0,5,0,0"
-                            AlternatingRowBackground="#1F1F26"
+                            AlternatingRowBackground="#212128"
                             AutoGenerateColumns="False"
                             Background="Transparent"
                             BorderThickness="0"
                             CanUserAddRows="True"
                             CanUserDeleteRows="True"
                             CanUserSortColumns="False"
-                            FontFamily="Segoe UI"
+                            FontFamily="Microsoft YaHei, Segoe UI"
                             FontSize="15"
                             GridLinesVisibility="Horizontal"
                             HeadersVisibility="Column"
                             HorizontalGridLinesBrush="#33333C"
                             ItemsSource="{Binding SensorConfigs}"
                             RowBackground="#25252D"
-                            RowHeight="40"
+                            RowHeight="46"
                             SelectedItem="{Binding DataContext.SelectedSensorConfig, RelativeSource={RelativeSource AncestorType=UserControl}, Mode=TwoWay}"
                             SelectionMode="Single"
                             SelectionUnit="FullRow"
                             VerticalGridLinesBrush="Transparent">
 
+                            <DataGrid.Resources>
+                                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#005A9E" />
+                                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="White" />
+                                <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#004C87" />
+                                <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="White" />
+                            </DataGrid.Resources>
+
                             <DataGrid.ColumnHeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="Background" Value="#1A1A1F" />
-                                    <Setter Property="Foreground" Value="#A0A0A0" />
+                                    <Setter Property="Foreground" Value="#888899" />
                                     <Setter Property="FontWeight" Value="Bold" />
                                     <Setter Property="Padding" Value="10,0" />
-                                    <Setter Property="Height" Value="40" />
-                                    <Setter Property="BorderThickness" Value="0" />
+                                    <Setter Property="Height" Value="45" />
+                                    <Setter Property="BorderThickness" Value="0,0,0,2" />
+                                    <Setter Property="BorderBrush" Value="#33333C" />
+                                    <Setter Property="HorizontalContentAlignment" Value="Center" />
                                 </Style>
                             </DataGrid.ColumnHeaderStyle>
 
@@ -134,18 +169,27 @@
                                     <Setter Property="BorderThickness" Value="0" />
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#2A2A35" />
+                                            <Setter Property="Background" Value="#31313C" />
                                         </Trigger>
                                         <Trigger Property="IsSelected" Value="True">
                                             <Setter Property="Background" Value="#005A9E" />
                                             <Setter Property="Foreground" Value="White" />
                                         </Trigger>
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="IsSelected" Value="True" />
+                                                <Condition Property="Selector.IsSelectionActive" Value="False" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter Property="Background" Value="#004C87" />
+                                            <Setter Property="Foreground" Value="White" />
+                                        </MultiTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </DataGrid.RowStyle>
 
                             <DataGrid.CellStyle>
                                 <Style TargetType="DataGridCell">
+                                    <Setter Property="Foreground" Value="White" />
                                     <Setter Property="Template">
                                         <Setter.Value>
                                             <ControlTemplate TargetType="DataGridCell">
@@ -154,7 +198,7 @@
                                                     Background="{TemplateBinding Background}"
                                                     BorderBrush="Transparent"
                                                     BorderThickness="0">
-                                                    <ContentPresenter VerticalAlignment="Center" />
+                                                    <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" />
                                                 </Border>
                                             </ControlTemplate>
                                         </Setter.Value>
@@ -163,6 +207,7 @@
                                         <Trigger Property="IsSelected" Value="True">
                                             <Setter Property="Background" Value="Transparent" />
                                             <Setter Property="BorderThickness" Value="0" />
+                                            <Setter Property="Foreground" Value="White" />
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
@@ -172,39 +217,239 @@
                                 <DataGridTextColumn
                                     Width="2*"
                                     Binding="{Binding Name}"
-                                    Header="传感器名称 (Name)" />
+                                    EditingElementStyle="{StaticResource CenterAlignedTextBox}"
+                                    ElementStyle="{StaticResource CenterAlignedTextBlock}"
+                                    Header="传感器名称" />
                                 <DataGridTextColumn
                                     Width="1*"
                                     Binding="{Binding Channel}"
+                                    EditingElementStyle="{StaticResource CenterAlignedTextBox}"
+                                    ElementStyle="{StaticResource CenterAlignedTextBlock}"
                                     Header="通道 (CH)" />
                                 <DataGridTextColumn
                                     Width="1*"
                                     Binding="{Binding K}"
+                                    EditingElementStyle="{StaticResource CenterAlignedTextBox}"
+                                    ElementStyle="{StaticResource CenterAlignedTextBlock}"
                                     Header="斜率 (K)" />
                                 <DataGridTextColumn
                                     Width="1*"
                                     Binding="{Binding B}"
+                                    EditingElementStyle="{StaticResource CenterAlignedTextBox}"
+                                    ElementStyle="{StaticResource CenterAlignedTextBlock}"
                                     Header="截距 (B)" />
                                 <DataGridTextColumn
                                     Width="1*"
                                     Binding="{Binding Unit}"
-                                    Header="单位 (Unit)" />
+                                    EditingElementStyle="{StaticResource CenterAlignedTextBox}"
+                                    ElementStyle="{StaticResource CenterAlignedTextBlock}"
+                                    Header="单位" />
                                 <DataGridTextColumn
                                     Width="1*"
                                     Binding="{Binding Min}"
-                                    Header="下限 (Min)" />
+                                    EditingElementStyle="{StaticResource CenterAlignedTextBox}"
+                                    ElementStyle="{StaticResource CenterAlignedTextBlock}"
+                                    Header="下限" />
                                 <DataGridTextColumn
                                     Width="1*"
                                     Binding="{Binding Max}"
-                                    Header="上限 (Max)" />
-                                <DataGridTextColumn
-                                    Width="1.2*"
-                                    Binding="{Binding Color}"
-                                    Header="指示颜色 (Color)" />
-                                <DataGridCheckBoxColumn
-                                    Width="1*"
-                                    Binding="{Binding IsImportant}"
-                                    Header="⭐ 重点关注" />
+                                    EditingElementStyle="{StaticResource CenterAlignedTextBox}"
+                                    ElementStyle="{StaticResource CenterAlignedTextBlock}"
+                                    Header="上限" />
+
+                                <DataGridTemplateColumn Width="1.5*" Header="指示颜色">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ComboBox
+                                                Height="32"
+                                                HorizontalAlignment="Stretch"
+                                                VerticalAlignment="Center"
+                                                Background="#1A1A1F"
+                                                BorderBrush="#33333C"
+                                                BorderThickness="1"
+                                                Foreground="White"
+                                                SelectedValue="{Binding Color, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                SelectedValuePath="Tag">
+
+                                                <ComboBox.ItemContainerStyle>
+                                                    <Style TargetType="ComboBoxItem">
+                                                        <Setter Property="Foreground" Value="White" />
+                                                        <Setter Property="Background" Value="#25252D" />
+                                                        <Setter Property="Padding" Value="10,6" />
+                                                        <Setter Property="Cursor" Value="Hand" />
+                                                        <Style.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Background" Value="#383845" />
+                                                            </Trigger>
+                                                            <Trigger Property="IsSelected" Value="True">
+                                                                <Setter Property="Background" Value="#007ACC" />
+                                                            </Trigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </ComboBox.ItemContainerStyle>
+
+                                                <ComboBoxItem Tag="Red">
+                                                    <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                                                        <Border
+                                                            Width="14"
+                                                            Height="14"
+                                                            Margin="0,0,10,0"
+                                                            Background="Red"
+                                                            CornerRadius="7" />
+                                                        <TextBlock
+                                                            VerticalAlignment="Center"
+                                                            Foreground="LightSalmon"
+                                                            Text="红色" />
+                                                    </StackPanel>
+                                                </ComboBoxItem>
+                                                <ComboBoxItem Tag="Green">
+                                                    <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                                                        <Border
+                                                            Width="14"
+                                                            Height="14"
+                                                            Margin="0,0,10,0"
+                                                            Background="Green"
+                                                            CornerRadius="7" />
+                                                        <TextBlock
+                                                            VerticalAlignment="Center"
+                                                            Foreground="LightSalmon"
+                                                            Text="绿色" />
+                                                    </StackPanel>
+                                                </ComboBoxItem>
+                                                <ComboBoxItem Tag="Blue">
+                                                    <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                                                        <Border
+                                                            Width="14"
+                                                            Height="14"
+                                                            Margin="0,0,10,0"
+                                                            Background="Blue"
+                                                            CornerRadius="7" />
+                                                        <TextBlock
+                                                            VerticalAlignment="Center"
+                                                            Foreground="LightSalmon"
+                                                            Text="蓝色" />
+                                                    </StackPanel>
+                                                </ComboBoxItem>
+                                                <ComboBoxItem Tag="Purple">
+                                                    <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                                                        <Border
+                                                            Width="14"
+                                                            Height="14"
+                                                            Margin="0,0,10,0"
+                                                            Background="Purple"
+                                                            CornerRadius="7" />
+                                                        <TextBlock
+                                                            VerticalAlignment="Center"
+                                                            Foreground="LightSalmon"
+                                                            Text="紫色" />
+                                                    </StackPanel>
+                                                </ComboBoxItem>
+                                                <ComboBoxItem Tag="Black">
+                                                    <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                                                        <Border
+                                                            Width="14"
+                                                            Height="14"
+                                                            Margin="0,0,10,0"
+                                                            Background="Black"
+                                                            CornerRadius="7" />
+                                                        <TextBlock
+                                                            VerticalAlignment="Center"
+                                                            Foreground="LightSalmon"
+                                                            Text="黑色" />
+                                                    </StackPanel>
+                                                </ComboBoxItem>
+                                                <ComboBoxItem Tag="DarkCyan">
+                                                    <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                                                        <Border
+                                                            Width="14"
+                                                            Height="14"
+                                                            Margin="0,0,10,0"
+                                                            Background="DarkCyan"
+                                                            CornerRadius="7" />
+                                                        <TextBlock
+                                                            VerticalAlignment="Center"
+                                                            Foreground="LightSalmon"
+                                                            Text="青绿色" />
+                                                    </StackPanel>
+                                                </ComboBoxItem>
+                                                <ComboBoxItem Tag="DarkOrange">
+                                                    <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                                                        <Border
+                                                            Width="14"
+                                                            Height="14"
+                                                            Margin="0,0,10,0"
+                                                            Background="DarkOrange"
+                                                            CornerRadius="7" />
+                                                        <TextBlock
+                                                            VerticalAlignment="Center"
+                                                            Foreground="LightSalmon"
+                                                            Text="橘色" />
+                                                    </StackPanel>
+                                                </ComboBoxItem>
+                                            </ComboBox>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <DataGridTemplateColumn Width="1.2*" Header="重点关注">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ToggleButton
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Cursor="Hand"
+                                                IsChecked="{Binding IsImportant, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                                                <ToggleButton.Style>
+                                                    <Style TargetType="ToggleButton">
+                                                        <Setter Property="Content" Value="☆" />
+                                                        <Setter Property="Foreground" Value="#555566" />
+                                                        <Setter Property="FontSize" Value="24" />
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ToggleButton">
+                                                                    <Border Padding="10,0" Background="Transparent">
+                                                                        <TextBlock
+                                                                            HorizontalAlignment="Center"
+                                                                            VerticalAlignment="Center"
+                                                                            FontSize="{TemplateBinding FontSize}"
+                                                                            Foreground="{TemplateBinding Foreground}"
+                                                                            Text="{TemplateBinding Content}" />
+                                                                    </Border>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                        <Style.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter Property="Content" Value="★" />
+                                                                <Setter Property="Foreground" Value="#FFD700" />
+                                                                <Setter Property="Effect">
+                                                                    <Setter.Value>
+                                                                        <DropShadowEffect
+                                                                            BlurRadius="8"
+                                                                            Opacity="0.8"
+                                                                            ShadowDepth="0"
+                                                                            Color="#FFD700" />
+                                                                    </Setter.Value>
+                                                                </Setter>
+                                                            </Trigger>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+                                                                <Setter Property="RenderTransform">
+                                                                    <Setter.Value>
+                                                                        <ScaleTransform ScaleX="1.2" ScaleY="1.2" />
+                                                                    </Setter.Value>
+                                                                </Setter>
+                                                            </Trigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </ToggleButton.Style>
+                                            </ToggleButton>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
                             </DataGrid.Columns>
                         </DataGrid>
                     </DataTemplate>
@@ -214,14 +459,14 @@
 
         <Button
             Grid.Row="2"
-            Width="150"
-            Height="38"
+            Width="160"
+            Height="42"
             HorizontalAlignment="Right"
             VerticalAlignment="Bottom"
             Background="#007ACC"
             BorderThickness="0"
             Command="{Binding SaveAndRestartCommand}"
-            Content="💾 保存全部配置"
+            Content="💾 保存并应用配置"
             Cursor="Hand"
             FontSize="15"
             FontWeight="Bold"
@@ -231,7 +476,7 @@
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="Button">
-                                <Border Background="{TemplateBinding Background}" CornerRadius="6">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="8">
                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
                             </ControlTemplate>
@@ -239,7 +484,16 @@
                     </Setter>
                     <Style.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Background" Value="#005A9E" />
+                            <Setter Property="Background" Value="#006CBA" />
+                            <Setter Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect
+                                        BlurRadius="10"
+                                        Opacity="0.5"
+                                        ShadowDepth="0"
+                                        Color="#007ACC" />
+                                </Setter.Value>
+                            </Setter>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter Property="Background" Value="#004C87" />

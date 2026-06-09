@@ -7,7 +7,7 @@ namespace EngineDA.Models
 {
     public partial class SensorDisplay : ObservableObject
     {
-        public static double DeadZone = 0.015;
+        public static double DeadZone = 0.0;
 
         [ObservableProperty] private string name = "";
         [ObservableProperty] private int channel;
@@ -110,36 +110,19 @@ namespace EngineDA.Models
                 return "📁 其他数据";
             }
         }
-        private double _lastDisplayedRawVoltage = double.NaN;
 
         private double rawVoltage;
         public double RawVoltage
         {
-            get
-            {
-                return rawVoltage;
-            }
+            get => rawVoltage;
             set
             {
                 if (Math.Abs(rawVoltage - value) <= 0.0001) return;
 
                 SetProperty(ref rawVoltage, value);
 
-                if (double.IsNaN(_lastDisplayedRawVoltage))
-                {
-                    _lastDisplayedRawVoltage = value;
-                    OnPropertyChanged(nameof(DisplayValue));
-                }
-                else
-                {
-                    if (Math.Abs(value - _lastDisplayedRawVoltage) > DeadZone)
-                    {
-                        _lastDisplayedRawVoltage = value;
-                        OnPropertyChanged(nameof(DisplayValue));
-                    }
-                }
-
                 OnPropertyChanged(nameof(Value));
+                OnPropertyChanged(nameof(DisplayValue));
                 ValueChanged?.Invoke(this, EventArgs.Empty);
             }
         }
@@ -150,10 +133,7 @@ namespace EngineDA.Models
         {
             get
             {
-                double displayPhysicalValue = CalculatePhysicalValue(_lastDisplayedRawVoltage);
-
-                if (double.IsNaN(displayPhysicalValue))
-                    displayPhysicalValue = Value;
+                double displayPhysicalValue = Value;
 
                 string u = Unit?.Trim() ?? "";
                 if (u == "RPM" || u == "r/min")
@@ -163,8 +143,6 @@ namespace EngineDA.Models
 
                 double roundedValue = Math.Round(displayPhysicalValue, 2, MidpointRounding.AwayFromZero);
                 return roundedValue.ToString("0.00");
-
-   
             }
         }
 

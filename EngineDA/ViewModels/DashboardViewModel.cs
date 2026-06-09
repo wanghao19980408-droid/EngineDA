@@ -32,11 +32,9 @@ namespace EngineDA.ViewModels
         private readonly SensorConfigService _configService;
 
         private readonly Stopwatch _processStopwatch = new();
-        private DispatcherTimer? _uiRefreshTimer;
-        private DispatcherTimer? _clockTimer;
+        private DispatcherTimer? _clockTimer; 
 
         private bool _isDisposed = false;
-        private short[]? _latestUdpData;
         #endregion
 
         #region 可绑定属性 (Observable Properties)
@@ -101,7 +99,6 @@ namespace EngineDA.ViewModels
             _filteredSensorsView.SortDescriptions.Add(new SortDescription("Unit", ListSortDirection.Ascending));
             _filteredSensorsView.SortDescriptions.Add(new SortDescription("Channel", ListSortDirection.Ascending));
 
-            // 【核心修改】开启 LiveSorting 实时平滑排序，彻底解决卡顿问题
             if (_filteredSensorsView is ICollectionViewLiveShaping liveView && liveView.CanChangeLiveSorting)
             {
                 liveView.LiveSortingProperties.Add(nameof(SensorDisplay.IsImportant));
@@ -118,32 +115,6 @@ namespace EngineDA.ViewModels
             _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _clockTimer.Tick += (_, _) => CurrentTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             _clockTimer.Start();
-
-            _uiRefreshTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(110) };
-            _uiRefreshTimer.Tick += UiRefreshTimer_Tick;
-            _uiRefreshTimer.Start();
-        }
-
-        private void UiRefreshTimer_Tick(object? sender, EventArgs e)
-        {
-            var data = _latestUdpData;
-            bool hasUpdate = false;
-
-            if (data != null)
-            {
-                foreach (var sensor in Sensors)
-                {
-                    if (sensor.Channel < 0 || sensor.Channel >= data.Length) continue;
-
-                    sensor.RawVoltage = data[sensor.Channel] / 1000f;
-                    CheckSensorAbnormal(sensor);
-                }
-                hasUpdate = true;
-            }
-            if (hasUpdate)
-            {
-                NotifyDataUpdated();
-            }
         }
 
         #endregion
@@ -165,7 +136,6 @@ namespace EngineDA.ViewModels
             return true;
         }
 
-        // ================= 新增：卡片左移/右移排序逻辑 =================
         [RelayCommand]
         private void MoveCardUp(SensorDisplay currentSensor)
         {
@@ -181,18 +151,15 @@ namespace EngineDA.ViewModels
             {
                 var previousSensor = importantSensors[index - 1];
 
-                // 原地互换次序
                 int temp = currentSensor.OrderIndex;
                 currentSensor.OrderIndex = previousSensor.OrderIndex;
                 previousSensor.OrderIndex = temp;
 
-                // 防止因脏数据导致序号相同
                 if (currentSensor.OrderIndex == previousSensor.OrderIndex)
                 {
                     previousSensor.OrderIndex = index;
                     currentSensor.OrderIndex = index - 1;
                 }
-                // 注意：这里不需要调用 Refresh()，因为我们开启了 LiveSorting，UI会自动平滑过渡
             }
         }
 
@@ -222,7 +189,6 @@ namespace EngineDA.ViewModels
                 }
             }
         }
-        // ==========================================================
 
         #endregion
 
@@ -272,7 +238,23 @@ namespace EngineDA.ViewModels
 
         private void OnGeneralUdpDataReceived(object? sender, short[] data)
         {
-            _latestUdpData = data;
+            Application.Current?.Dispatcher.InvokeAsync(() =>
+            {
+                bool hasUpdate = false;
+                foreach (var sensor in Sensors)
+                {
+                    if (sensor.Channel < 0 || sensor.Channel >= data.Length) continue;
+
+                    sensor.RawVoltage = data[sensor.Channel] / 1000f;
+                    CheckSensorAbnormal(sensor);
+                    hasUpdate = true;
+                }
+
+                if (hasUpdate)
+                {
+                    NotifyDataUpdated();
+                }
+            }, DispatcherPriority.Render);
         }
 
         private void CheckSensorAbnormal(SensorDisplay sensor)
@@ -353,7 +335,6 @@ namespace EngineDA.ViewModels
             if (_isDisposed) return;
 
             _clockTimer?.Stop();
-            _uiRefreshTimer?.Stop();
             _processStopwatch.Stop();
 
             try

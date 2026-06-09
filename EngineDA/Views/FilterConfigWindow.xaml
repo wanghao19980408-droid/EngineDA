@@ -4,7 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="历史数据滤波配置"
     Width="420"
-    Height="380"
+    Height="310"
     AllowsTransparency="True"
     Background="Transparent"
     ResizeMode="NoResize"
@@ -41,7 +41,7 @@
                         FontSize="15"
                         FontWeight="Bold"
                         Foreground="#00E676"
-                        Text="⚙️ 实验数据滤波与显示配置" />
+                        Text="⚙️ 实验数据滤波" />
                     <Button
                         Width="40"
                         HorizontalAlignment="Right"
@@ -59,7 +59,7 @@
                 <CheckBox
                     x:Name="chkEnableFilter"
                     Margin="0,0,0,20"
-                    Content="开启实验数据(历史解析)自动滤波"
+                    Content="开启实验数据自动滤波"
                     FontSize="15"
                     FontWeight="Bold"
                     Foreground="White" />
@@ -106,29 +106,6 @@
                         Text="500"
                         TextAlignment="Center"
                         ToolTip="推荐 100 ~ 500" />
-                </Grid>
-
-                <Grid Margin="0,0,0,25">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="180" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock
-                        Grid.Column="0"
-                        VerticalAlignment="Center"
-                        FontWeight="Bold"
-                        Foreground="#FFD700"
-                        Text="实时大屏显示死区 (V): " />
-                    <TextBox
-                        x:Name="txtDeadZone"
-                        Grid.Column="1"
-                        Padding="5"
-                        Background="#1A1A1F"
-                        BorderBrush="#FFD700"
-                        Foreground="White"
-                        Text="0.015"
-                        TextAlignment="Center"
-                        ToolTip="例如0.015代表屏蔽15mV的电磁底噪闪烁" />
                 </Grid>
 
                 <Button
