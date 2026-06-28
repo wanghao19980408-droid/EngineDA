@@ -53,7 +53,6 @@
                     HorizontalAlignment="Right"
                     VerticalAlignment="Center"
                     Orientation="Horizontal">
-
                     <TextBlock
                         Margin="20,0,8,0"
                         VerticalAlignment="Center"
@@ -83,288 +82,288 @@
             </DockPanel>
         </Border>
 
-        <!--  ② 修改点：整体缩放移到 ItemsControl 上，ScrollViewer 改为 Auto 横向滚动  -->
-        <ScrollViewer
+        <ItemsControl
             Grid.Row="1"
             Margin="5"
-            HorizontalScrollBarVisibility="Auto"
-            VerticalScrollBarVisibility="Auto">
+            ItemsSource="{Binding FilteredSensorsView}"
+            ScrollViewer.CanContentScroll="True"
+            VirtualizingPanel.IsVirtualizing="True"
+            VirtualizingPanel.IsVirtualizingWhenGrouping="True"
+            VirtualizingPanel.VirtualizationMode="Recycling">
 
-            <ItemsControl
-                ItemsSource="{Binding FilteredSensorsView}"
-                ScrollViewer.CanContentScroll="True"
-                VirtualizingPanel.IsVirtualizing="True"
-                VirtualizingPanel.IsVirtualizingWhenGrouping="True"
-                VirtualizingPanel.VirtualizationMode="Recycling">
+            <ItemsControl.LayoutTransform>
+                <ScaleTransform ScaleX="{Binding Value, ElementName=ZoomSlider}" ScaleY="{Binding Value, ElementName=ZoomSlider}" />
+            </ItemsControl.LayoutTransform>
 
-                <!--  ② 修改点：整体缩放放在 ItemsControl 层，不再放每张卡片上  -->
-                <ItemsControl.LayoutTransform>
-                    <ScaleTransform ScaleX="{Binding Value, ElementName=ZoomSlider}" ScaleY="{Binding Value, ElementName=ZoomSlider}" />
-                </ItemsControl.LayoutTransform>
+            <ItemsControl.Template>
+                <ControlTemplate TargetType="ItemsControl">
+                    <Border Background="{TemplateBinding Background}">
+                        <ScrollViewer
+                            CanContentScroll="True"
+                            Focusable="False"
+                            HorizontalScrollBarVisibility="Disabled"
+                            VerticalScrollBarVisibility="Auto">
+                            <ItemsPresenter />
+                        </ScrollViewer>
+                    </Border>
+                </ControlTemplate>
+            </ItemsControl.Template>
 
-                <ItemsControl.GroupStyle>
-                    <GroupStyle>
-                        <GroupStyle.HeaderTemplate>
-                            <DataTemplate>
-                                <!--  分组 Header 不再有 LayoutTransform  -->
-                                <Border
-                                    Margin="4,15,4,5"
-                                    Padding="15,8"
-                                    Background="#25252D"
-                                    BorderBrush="#33333C"
-                                    BorderThickness="1"
-                                    CornerRadius="6">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock
-                                            VerticalAlignment="Center"
-                                            FontSize="16"
-                                            FontWeight="Bold"
-                                            Foreground="#007ACC"
-                                            Text="{Binding Name}" />
-                                        <TextBlock
-                                            Margin="10,0,0,0"
-                                            VerticalAlignment="Center"
-                                            FontSize="13"
-                                            Foreground="#888"
-                                            Text="{Binding ItemCount, StringFormat=' ({0} 项)'}" />
-                                    </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </GroupStyle.HeaderTemplate>
-                    </GroupStyle>
-                </ItemsControl.GroupStyle>
+            <ItemsControl.GroupStyle>
+                <GroupStyle>
+                    <GroupStyle.HeaderTemplate>
+                        <DataTemplate>
+                            <Border
+                                Margin="4,15,4,5"
+                                Padding="15,8"
+                                Background="#25252D"
+                                BorderBrush="#33333C"
+                                BorderThickness="1"
+                                CornerRadius="6">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        FontWeight="Bold"
+                                        Foreground="#007ACC"
+                                        Text="{Binding Name}" />
+                                    <TextBlock
+                                        Margin="10,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="13"
+                                        Foreground="#888"
+                                        Text="{Binding ItemCount, StringFormat=' ({0} 项)'}" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </GroupStyle.HeaderTemplate>
+                </GroupStyle>
+            </ItemsControl.GroupStyle>
 
-                <!--  ① 修改点：WrapPanel 换成 VirtualizingWrapPanel  -->
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <vwp:VirtualizingWrapPanel
-                            Orientation="Horizontal"
-                            SpacingMode="Uniform"
-                            StretchItems="False" />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <vwp:VirtualizingWrapPanel
+                        Orientation="Horizontal"
+                        SpacingMode="Uniform"
+                        StretchItems="False" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
 
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border
-                            Width="{Binding CardWidth}"
-                            Height="{Binding CardHeight}"
-                            Margin="4"
-                            BorderThickness="2"
-                            CacheMode="BitmapCache"
-                            CornerRadius="8">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border
+                        Width="{Binding CardWidth}"
+                        Height="{Binding CardHeight}"
+                        Margin="4"
+                        BorderThickness="2"
+                        CacheMode="BitmapCache"
+                        CornerRadius="8">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="#18181E" />
+                                <Setter Property="BorderBrush" Value="{Binding Color, TargetNullValue=#333340, FallbackValue=#333340}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsAbnormal}" Value="True">
+                                        <Setter Property="BorderBrush" Value="#FF3B30" />
+                                        <Setter Property="Background" Value="#2A1515" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
 
-                            <!--  卡片上的 LayoutTransform 已删除  -->
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="42" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
 
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Setter Property="Background" Value="#18181E" />
-                                    <Setter Property="BorderBrush" Value="{Binding Color, TargetNullValue=#333340, FallbackValue=#333340}" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsAbnormal}" Value="True">
-                                            <Setter Property="BorderBrush" Value="#FF3B30" />
-                                            <Setter Property="Background" Value="#2A1515" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
+                            <Border Grid.Row="0" CornerRadius="5,5,0,0">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="{Binding Color, TargetNullValue=#1E90FF, FallbackValue=#1E90FF}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsAbnormal}" Value="True">
+                                                <Setter Property="Background" Value="#FF3B30" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
 
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="42" />
-                                    <RowDefinition Height="*" />
-                                </Grid.RowDefinitions>
+                                <Grid Margin="12,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
 
-                                <Border Grid.Row="0" CornerRadius="5,5,0,0">
-                                    <Border.Style>
-                                        <Style TargetType="Border">
-                                            <Setter Property="Background" Value="{Binding Color, TargetNullValue=#1E90FF, FallbackValue=#1E90FF}" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsAbnormal}" Value="True">
-                                                    <Setter Property="Background" Value="#FF3B30" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Border.Style>
-
-                                    <Grid Margin="12,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-
-                                        <TextBlock
-                                            Grid.Column="0"
-                                            Margin="0,0,10,0"
-                                            VerticalAlignment="Center"
-                                            FontSize="32"
-                                            FontWeight="Bold"
-                                            Foreground="GhostWhite"
-                                            Text="{Binding Name}"
-                                            TextTrimming="CharacterEllipsis" />
-
-                                        <StackPanel
-                                            Grid.Column="1"
-                                            Margin="0,0,8,0"
-                                            VerticalAlignment="Center"
-                                            Orientation="Horizontal">
-                                            <StackPanel.Style>
-                                                <Style TargetType="StackPanel">
-                                                    <Setter Property="Visibility" Value="Collapsed" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsImportant}" Value="True">
-                                                            <Setter Property="Visibility" Value="Visible" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </StackPanel.Style>
-
-                                            <Button
-                                                Width="26"
-                                                Height="26"
-                                                Margin="0,0,5,0"
-                                                Background="#33FFFFFF"
-                                                BorderThickness="0"
-                                                Command="{Binding DataContext.MoveCardUpCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                CommandParameter="{Binding}"
-                                                Content="◀"
-                                                Cursor="Hand"
-                                                FontSize="12"
-                                                FontWeight="Bold"
-                                                Foreground="White">
-                                                <Button.Resources>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="CornerRadius" Value="13" />
-                                                    </Style>
-                                                </Button.Resources>
-                                            </Button>
-
-                                            <Button
-                                                Width="26"
-                                                Height="26"
-                                                Background="#33FFFFFF"
-                                                BorderThickness="0"
-                                                Command="{Binding DataContext.MoveCardDownCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                CommandParameter="{Binding}"
-                                                Content="▶"
-                                                Cursor="Hand"
-                                                FontSize="12"
-                                                FontWeight="Bold"
-                                                Foreground="White">
-                                                <Button.Resources>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="CornerRadius" Value="13" />
-                                                    </Style>
-                                                </Button.Resources>
-                                            </Button>
-                                        </StackPanel>
-
-                                        <ToggleButton
-                                            Grid.Column="2"
-                                            Margin="0,-2,-5,0"
-                                            Background="Transparent"
-                                            BorderThickness="0"
-                                            Cursor="Hand"
-                                            IsChecked="{Binding IsImportant}">
-                                            <ToggleButton.Style>
-                                                <Style TargetType="ToggleButton">
-                                                    <Setter Property="Content" Value="☆" />
-                                                    <Setter Property="Foreground" Value="#FFFFFF" />
-                                                    <Setter Property="Opacity" Value="0.5" />
-                                                    <Setter Property="FontSize" Value="24" />
-                                                    <Setter Property="Template">
-                                                        <Setter.Value>
-                                                            <ControlTemplate TargetType="ToggleButton">
-                                                                <TextBlock
-                                                                    Margin="0,0,5,0"
-                                                                    HorizontalAlignment="Center"
-                                                                    VerticalAlignment="Center"
-                                                                    FontSize="{TemplateBinding FontSize}"
-                                                                    Foreground="{TemplateBinding Foreground}"
-                                                                    Text="{TemplateBinding Content}" />
-                                                            </ControlTemplate>
-                                                        </Setter.Value>
-                                                    </Setter>
-                                                    <Style.Triggers>
-                                                        <Trigger Property="IsChecked" Value="True">
-                                                            <Setter Property="Content" Value="★" />
-                                                            <Setter Property="Foreground" Value="#FFD700" />
-                                                            <Setter Property="Opacity" Value="1" />
-                                                        </Trigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </ToggleButton.Style>
-                                        </ToggleButton>
-                                    </Grid>
-                                </Border>
-
-                                <Viewbox
-                                    Grid.Row="1"
-                                    Margin="15,10,15,25"
-                                    Stretch="Uniform"
-                                    StretchDirection="DownOnly">
+                                    <TextBlock
+                                        Grid.Column="0"
+                                        Margin="0,0,10,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="32"
+                                        FontWeight="Bold"
+                                        Foreground="GhostWhite"
+                                        Text="{Binding Name}"
+                                        TextTrimming="CharacterEllipsis" />
 
                                     <StackPanel
-                                        Margin="0,0,15,0"
-                                        HorizontalAlignment="Center"
+                                        Grid.Column="1"
+                                        Margin="0,0,8,0"
                                         VerticalAlignment="Center"
                                         Orientation="Horizontal">
+                                        <StackPanel.Style>
+                                            <Style TargetType="StackPanel">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsImportant}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Style>
 
-                                        <TextBlock
-                                            FontSize="50"
-                                            FontWeight="Black"
-                                            Text="{Binding DisplayValue}">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="#00E676" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsAbnormal}" Value="True">
-                                                            <Setter Property="Foreground" Value="#FF3B30" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-
-                                        <TextBlock
-                                            Margin="8,0,0,10"
-                                            VerticalAlignment="Bottom"
-                                            FontSize="20"
+                                        <Button
+                                            Width="26"
+                                            Height="26"
+                                            Margin="0,0,5,0"
+                                            Background="#33FFFFFF"
+                                            BorderThickness="0"
+                                            Command="{Binding DataContext.MoveCardUpCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}"
+                                            Content="◀"
+                                            Cursor="Hand"
+                                            FontSize="12"
                                             FontWeight="Bold"
-                                            Foreground="#A0A0A0"
-                                            Text="{Binding CurrentUnit}">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsTemperatureSensor}" Value="True">
-                                                            <Setter Property="Cursor" Value="Hand" />
-                                                            <Setter Property="ToolTip" Value="点击切换温度单位 (℃ / K)" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
+                                            Foreground="White">
+                                            <Button.Resources>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="CornerRadius" Value="13" />
                                                 </Style>
-                                            </TextBlock.Style>
-                                            <TextBlock.InputBindings>
-                                                <MouseBinding Command="{Binding ToggleUnitCommand}" Gesture="LeftClick" />
-                                            </TextBlock.InputBindings>
-                                        </TextBlock>
-                                    </StackPanel>
-                                </Viewbox>
+                                            </Button.Resources>
+                                        </Button>
 
-                                <TextBlock
-                                    Grid.Row="1"
-                                    Margin="10,8"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Bottom"
-                                    FontSize="13"
-                                    FontWeight="Bold"
-                                    Foreground="#666"
-                                    Text="{Binding Channel, StringFormat='CH{0}'}" />
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
+                                        <Button
+                                            Width="26"
+                                            Height="26"
+                                            Background="#33FFFFFF"
+                                            BorderThickness="0"
+                                            Command="{Binding DataContext.MoveCardDownCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}"
+                                            Content="▶"
+                                            Cursor="Hand"
+                                            FontSize="12"
+                                            FontWeight="Bold"
+                                            Foreground="White">
+                                            <Button.Resources>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="CornerRadius" Value="13" />
+                                                </Style>
+                                            </Button.Resources>
+                                        </Button>
+                                    </StackPanel>
+
+                                    <ToggleButton
+                                        Grid.Column="2"
+                                        Margin="0,-2,-5,0"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Cursor="Hand"
+                                        IsChecked="{Binding IsImportant}">
+                                        <ToggleButton.Style>
+                                            <Style TargetType="ToggleButton">
+                                                <Setter Property="Content" Value="☆" />
+                                                <Setter Property="Foreground" Value="#FFFFFF" />
+                                                <Setter Property="Opacity" Value="0.5" />
+                                                <Setter Property="FontSize" Value="24" />
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="ToggleButton">
+                                                            <TextBlock
+                                                                Margin="0,0,5,0"
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                FontSize="{TemplateBinding FontSize}"
+                                                                Foreground="{TemplateBinding Foreground}"
+                                                                Text="{TemplateBinding Content}" />
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsChecked" Value="True">
+                                                        <Setter Property="Content" Value="★" />
+                                                        <Setter Property="Foreground" Value="#FFD700" />
+                                                        <Setter Property="Opacity" Value="1" />
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </ToggleButton.Style>
+                                    </ToggleButton>
+                                </Grid>
+                            </Border>
+
+                            <Viewbox
+                                Grid.Row="1"
+                                Margin="15,10,15,25"
+                                Stretch="Uniform"
+                                StretchDirection="DownOnly">
+                                <StackPanel
+                                    Margin="0,0,15,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        FontSize="50"
+                                        FontWeight="Black"
+                                        Text="{Binding DisplayValue}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#00E676" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsAbnormal}" Value="True">
+                                                        <Setter Property="Foreground" Value="#FF3B30" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+
+                                    <TextBlock
+                                        Margin="8,0,0,10"
+                                        VerticalAlignment="Bottom"
+                                        FontSize="20"
+                                        FontWeight="Bold"
+                                        Foreground="#A0A0A0"
+                                        Text="{Binding CurrentUnit}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsTemperatureSensor}" Value="True">
+                                                        <Setter Property="Cursor" Value="Hand" />
+                                                        <Setter Property="ToolTip" Value="点击切换温度单位 (℃ / K)" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                        <TextBlock.InputBindings>
+                                            <MouseBinding Command="{Binding ToggleUnitCommand}" Gesture="LeftClick" />
+                                        </TextBlock.InputBindings>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Viewbox>
+
+                            <TextBlock
+                                Grid.Row="1"
+                                Margin="10,8"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Bottom"
+                                FontSize="13"
+                                FontWeight="Bold"
+                                Foreground="#666"
+                                Text="{Binding Channel, StringFormat='CH{0}'}" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
     </Grid>
 </UserControl>
