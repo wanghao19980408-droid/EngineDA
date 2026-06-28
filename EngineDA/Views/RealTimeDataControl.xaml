@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vwp="clr-namespace:WpfToolkit.Controls;assembly=VirtualizingWrapPanel"
     Background="#1E1E24"
     mc:Ignorable="d">
 
@@ -82,18 +83,30 @@
             </DockPanel>
         </Border>
 
+        <!--  ② 修改点：整体缩放移到 ItemsControl 上，ScrollViewer 改为 Auto 横向滚动  -->
         <ScrollViewer
             Grid.Row="1"
             Margin="5"
-            HorizontalScrollBarVisibility="Disabled"
+            HorizontalScrollBarVisibility="Auto"
             VerticalScrollBarVisibility="Auto">
 
-            <ItemsControl ItemsSource="{Binding FilteredSensorsView}">
+            <ItemsControl
+                ItemsSource="{Binding FilteredSensorsView}"
+                ScrollViewer.CanContentScroll="True"
+                VirtualizingPanel.IsVirtualizing="True"
+                VirtualizingPanel.IsVirtualizingWhenGrouping="True"
+                VirtualizingPanel.VirtualizationMode="Recycling">
+
+                <!--  ② 修改点：整体缩放放在 ItemsControl 层，不再放每张卡片上  -->
+                <ItemsControl.LayoutTransform>
+                    <ScaleTransform ScaleX="{Binding Value, ElementName=ZoomSlider}" ScaleY="{Binding Value, ElementName=ZoomSlider}" />
+                </ItemsControl.LayoutTransform>
 
                 <ItemsControl.GroupStyle>
                     <GroupStyle>
                         <GroupStyle.HeaderTemplate>
                             <DataTemplate>
+                                <!--  分组 Header 不再有 LayoutTransform  -->
                                 <Border
                                     Margin="4,15,4,5"
                                     Padding="15,8"
@@ -101,9 +114,6 @@
                                     BorderBrush="#33333C"
                                     BorderThickness="1"
                                     CornerRadius="6">
-                                    <Border.LayoutTransform>
-                                        <ScaleTransform ScaleX="{Binding Value, ElementName=ZoomSlider}" ScaleY="{Binding Value, ElementName=ZoomSlider}" />
-                                    </Border.LayoutTransform>
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock
                                             VerticalAlignment="Center"
@@ -124,9 +134,13 @@
                     </GroupStyle>
                 </ItemsControl.GroupStyle>
 
+                <!--  ① 修改点：WrapPanel 换成 VirtualizingWrapPanel  -->
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <WrapPanel Orientation="Horizontal" />
+                        <vwp:VirtualizingWrapPanel
+                            Orientation="Horizontal"
+                            SpacingMode="Uniform"
+                            StretchItems="False" />
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
 
@@ -137,11 +151,10 @@
                             Height="{Binding CardHeight}"
                             Margin="4"
                             BorderThickness="2"
+                            CacheMode="BitmapCache"
                             CornerRadius="8">
 
-                            <Border.LayoutTransform>
-                                <ScaleTransform ScaleX="{Binding Value, ElementName=ZoomSlider}" ScaleY="{Binding Value, ElementName=ZoomSlider}" />
-                            </Border.LayoutTransform>
+                            <!--  卡片上的 LayoutTransform 已删除  -->
 
                             <Border.Style>
                                 <Style TargetType="Border">

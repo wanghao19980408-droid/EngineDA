@@ -4,13 +4,10 @@ using CommunityToolkit.Mvvm.Messaging;
 using EngineDA.Helpers;
 using EngineDA.Models;
 using EngineDA.Services;
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
@@ -237,22 +234,16 @@ namespace EngineDA.ViewModels
 
         private void OnGeneralUdpDataReceived(object? sender, short[] data)
         {
-            Application.Current?.Dispatcher.InvokeAsync(() =>
+            App.Current.Dispatcher.InvokeAsync(() =>
             {
-                bool hasUpdate = false;
                 foreach (var sensor in Sensors)
                 {
                     if (sensor.Channel < 0 || sensor.Channel >= data.Length) continue;
-
                     sensor.RawVoltage = data[sensor.Channel] / 1000f;
-                    CheckSensorAbnormal(sensor);
-                    hasUpdate = true;
                 }
 
-                if (hasUpdate)
-                {
-                    NotifyDataUpdated();
-                }
+                DataUpdated?.Invoke(this, EventArgs.Empty);
+                UpdateConnectionStatus();
             }, DispatcherPriority.Render);
         }
 
@@ -269,12 +260,9 @@ namespace EngineDA.ViewModels
 
         private void UpdateConnectionStatus()
         {
-            bool connected = (_udpService?.IsConnected ?? false);
-
-            if (IsConnected != connected)
-            {
-                IsConnected = connected;
-            }
+            IsConnected = _udpService?.IsConnected ?? false;
+            OnPropertyChanged(nameof(ConnectionStatusText));
+            OnPropertyChanged(nameof(ConnectionStatusColor));
         }
 
         public event EventHandler? DataUpdated;
