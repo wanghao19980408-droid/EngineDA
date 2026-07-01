@@ -173,7 +173,7 @@
 
                         <Grid>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="42" />
+                                <RowDefinition Height="50" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
@@ -196,15 +196,21 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
 
-                                    <TextBlock
+                                    <Viewbox
                                         Grid.Column="0"
                                         Margin="0,0,10,0"
-                                        VerticalAlignment="Center"
-                                        FontSize="32"
-                                        FontWeight="Bold"
-                                        Foreground="GhostWhite"
-                                        Text="{Binding Name}"
-                                        TextTrimming="CharacterEllipsis" />
+                                        HorizontalAlignment="Left"
+                                        Stretch="Uniform"
+                                        StretchDirection="DownOnly">
+
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            FontSize="38"
+                                            FontWeight="Black"
+                                            Foreground="White"
+                                            Text="{Binding Name}" />
+
+                                    </Viewbox>
 
                                     <StackPanel
                                         Grid.Column="1"
@@ -353,12 +359,12 @@
 
                             <TextBlock
                                 Grid.Row="1"
-                                Margin="10,8"
+                                Margin="12,8"
                                 HorizontalAlignment="Left"
                                 VerticalAlignment="Bottom"
-                                FontSize="13"
-                                FontWeight="Bold"
-                                Foreground="#666"
+                                FontSize="22"
+                                FontWeight="Black"
+                                Foreground="#A0A0A0"
                                 Text="{Binding Channel, StringFormat='CH{0}'}" />
                         </Grid>
                     </Border>

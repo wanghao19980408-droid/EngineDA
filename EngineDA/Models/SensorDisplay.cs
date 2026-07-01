@@ -1,6 +1,8 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Media;
 
 namespace EngineDA.Models
@@ -111,23 +113,59 @@ namespace EngineDA.Models
             }
         }
 
+        private const int FilterWindowSize = 30;
+        private const int TrimCount = 6;        
+
+        private readonly Queue<double> _buffer = new();
+        private double _cachedValue;
+
         private double rawVoltage;
         public double RawVoltage
         {
             get => rawVoltage;
             set
             {
-                if (Math.Abs(rawVoltage - value) <= 0.0001) return;
+                rawVoltage = value;
 
-                SetProperty(ref rawVoltage, value);
+                _buffer.Enqueue(value);
+                if (_buffer.Count > FilterWindowSize)
+                {
+                    _buffer.Dequeue();
+                }
 
+                RefreshCachedValue();
+            }
+        }
+
+        public double Value => _cachedValue;
+
+        private void RefreshCachedValue()
+        {
+            double filteredRaw = ComputeFilteredRawValue();
+
+            double newPhysicalValue = CalculatePhysicalValue(filteredRaw);
+
+            if (Math.Abs(_cachedValue - newPhysicalValue) > DeadZone || _buffer.Count <= 1)
+            {
+                _cachedValue = newPhysicalValue;
+
+                OnPropertyChanged(nameof(RawVoltage));
                 OnPropertyChanged(nameof(Value));
                 OnPropertyChanged(nameof(DisplayValue));
                 ValueChanged?.Invoke(this, EventArgs.Empty);
             }
         }
 
-        public double Value => CalculatePhysicalValue(RawVoltage);
+        private double ComputeFilteredRawValue()
+        {
+            if (_buffer.Count == 0) return rawVoltage;
+
+            var sorted = _buffer.OrderBy(v => v).ToList();
+            int trim = Math.Min(TrimCount, sorted.Count / 3);
+            var mid = sorted.Skip(trim).Take(sorted.Count - trim * 2).ToList();
+
+            return mid.Count > 0 ? mid.Average() : sorted.Average();
+        }
 
         public string DisplayValue
         {
