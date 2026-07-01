@@ -7,7 +7,7 @@
     Height="1080"
     AllowsTransparency="True"
     Background="Transparent"
-    Icon="/Assets/Images/worldCup.ico"
+    Icon="/Assets/Images/gba.ico"
     WindowStartupLocation="CenterScreen"
     WindowStyle="None">
 
