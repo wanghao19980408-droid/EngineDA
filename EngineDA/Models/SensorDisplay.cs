@@ -58,6 +58,7 @@ namespace EngineDA.Models
             if (IsTemperatureSensor)
             {
                 ShowAsKelvin = !ShowAsKelvin;
+                RefreshCachedValue(forceUpdate: true);
             }
         }
 
@@ -114,7 +115,7 @@ namespace EngineDA.Models
         }
 
         private const int FilterWindowSize = 30;
-        private const int TrimCount = 6;        
+        private const int TrimCount = 6;
 
         private readonly Queue<double> _buffer = new();
         private double _cachedValue;
@@ -133,19 +134,19 @@ namespace EngineDA.Models
                     _buffer.Dequeue();
                 }
 
-                RefreshCachedValue();
+                RefreshCachedValue(false);
             }
         }
 
         public double Value => _cachedValue;
 
-        private void RefreshCachedValue()
+        private void RefreshCachedValue(bool forceUpdate = false)
         {
             double filteredRaw = ComputeFilteredRawValue();
 
             double newPhysicalValue = CalculatePhysicalValue(filteredRaw);
 
-            if (Math.Abs(_cachedValue - newPhysicalValue) > DeadZone || _buffer.Count <= 1)
+            if (forceUpdate || Math.Abs(_cachedValue - newPhysicalValue) > DeadZone || _buffer.Count <= 1)
             {
                 _cachedValue = newPhysicalValue;
 

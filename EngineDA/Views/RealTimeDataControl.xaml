@@ -340,16 +340,6 @@
                                         FontWeight="Bold"
                                         Foreground="#A0A0A0"
                                         Text="{Binding CurrentUnit}">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsTemperatureSensor}" Value="True">
-                                                        <Setter Property="Cursor" Value="Hand" />
-                                                        <Setter Property="ToolTip" Value="点击切换温度单位 (℃ / K)" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
                                         <TextBlock.InputBindings>
                                             <MouseBinding Command="{Binding ToggleUnitCommand}" Gesture="LeftClick" />
                                         </TextBlock.InputBindings>
