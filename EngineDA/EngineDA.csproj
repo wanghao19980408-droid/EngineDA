@@ -1,24 +1,24 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows7.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <UseWPF>true</UseWPF>
-    <ApplicationIcon>gba.ico</ApplicationIcon>
-  </PropertyGroup>
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows7.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon>gba.ico</ApplicationIcon>
+  </PropertyGroup>
 
-  <ItemGroup>
-    <None Remove="Assets\Fonts\iconfont.ttf" />
-    <None Remove="Assets\Images\gba.ico" />
-    <None Remove="Assets\Images\logo.png" />
-    <None Remove="Assets\Images\worldCup.ico" />
-  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Assets\Fonts\iconfont.ttf" />
+    <None Remove="Assets\Images\gba.ico" />
+    <None Remove="Assets\Images\logo.png" />
+    <None Remove="Assets\Images\worldCup.ico" />
+  </ItemGroup>
 
-  <ItemGroup>
-    <Content Include="gba.ico" />
-  </ItemGroup>
+  <ItemGroup>
+    <Content Include="gba.ico" />
+  </ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
@@ -32,26 +32,26 @@
 		</PackageReference>
 	</ItemGroup>
 
-  <ItemGroup>
-    <Reference Include="DataConvertLib">
-      <HintPath>bin\Debug\net8.0-windows7.0\DataConvertLib.dll</HintPath>
-    </Reference>
-    <Reference Include="MiniExcel">
-      <HintPath>bin\Debug\net8.0-windows7.0\MiniExcel.dll</HintPath>
-    </Reference>
-    <Reference Include="UdpEx">
-      <HintPath>bin\Debug\net8.0-windows7.0\UdpEx.dll</HintPath>
-    </Reference>
-  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="DataConvertLib">
+      <HintPath>bin\Debug\net8.0-windows7.0\DataConvertLib.dll</HintPath>
+    </Reference>
+    <Reference Include="MiniExcel">
+      <HintPath>bin\Debug\net8.0-windows7.0\MiniExcel.dll</HintPath>
+    </Reference>
+    <Reference Include="UdpEx">
+      <HintPath>bin\Debug\net8.0-windows7.0\UdpEx.dll</HintPath>
+    </Reference>
+  </ItemGroup>
 
-  <ItemGroup>
-    <Resource Include="Assets\Fonts\iconfont.ttf" />
-    <Resource Include="Assets\Images\gba.ico" />
-    <Resource Include="Assets\Images\logo.png" />
-  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\Fonts\iconfont.ttf" />
+    <Resource Include="Assets\Images\gba.ico" />
+    <Resource Include="Assets\Images\logo.png" />
+  </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Assets\Styles\" />
-  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Assets\Styles\" />
+  </ItemGroup>
 
 </Project>

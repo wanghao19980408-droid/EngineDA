@@ -312,39 +312,23 @@
                                 Margin="15,10,15,25"
                                 Stretch="Uniform"
                                 StretchDirection="DownOnly">
-                                <StackPanel
-                                    Margin="0,0,15,0"
+                                <TextBlock
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
-                                    Orientation="Horizontal">
-                                    <TextBlock
-                                        FontSize="50"
-                                        FontWeight="Black"
-                                        Text="{Binding DisplayValue}">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="#00E676" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsAbnormal}" Value="True">
-                                                        <Setter Property="Foreground" Value="#FF3B30" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
-
-                                    <TextBlock
-                                        Margin="8,0,0,10"
-                                        VerticalAlignment="Bottom"
-                                        FontSize="20"
-                                        FontWeight="Bold"
-                                        Foreground="#A0A0A0"
-                                        Text="{Binding CurrentUnit}">
-                                        <TextBlock.InputBindings>
-                                            <MouseBinding Command="{Binding ToggleUnitCommand}" Gesture="LeftClick" />
-                                        </TextBlock.InputBindings>
-                                    </TextBlock>
-                                </StackPanel>
+                                    FontSize="65"
+                                    FontWeight="Black"
+                                    Text="{Binding DisplayValue}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#00E676" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsAbnormal}" Value="True">
+                                                    <Setter Property="Foreground" Value="#FF3B30" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
                             </Viewbox>
 
                             <TextBlock
@@ -352,10 +336,25 @@
                                 Margin="12,8"
                                 HorizontalAlignment="Left"
                                 VerticalAlignment="Bottom"
-                                FontSize="22"
+                                FontSize="14"
                                 FontWeight="Black"
                                 Foreground="#A0A0A0"
-                                Text="{Binding Channel, StringFormat='CH{0}'}" />
+                                Text="{Binding DisplayChannel}" />
+
+                            <TextBlock
+                                Grid.Row="1"
+                                Margin="12,8"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Bottom"
+                                Cursor="Hand"
+                                FontSize="20"
+                                FontWeight="Bold"
+                                Foreground="#A0A0A0"
+                                Text="{Binding CurrentUnit}">
+                                <TextBlock.InputBindings>
+                                    <MouseBinding Command="{Binding ToggleUnitCommand}" Gesture="LeftClick" />
+                                </TextBlock.InputBindings>
+                            </TextBlock>
                         </Grid>
                     </Border>
                 </DataTemplate>

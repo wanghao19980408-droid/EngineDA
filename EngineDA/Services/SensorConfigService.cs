@@ -1,4 +1,5 @@
-﻿using EngineDA.Models;
+﻿using EngineDA.Helpers;
+using EngineDA.Models;
 using MiniExcelLibs;
 using System;
 using System.Collections.Generic;
@@ -11,7 +12,6 @@ namespace EngineDA.Services
     public class SensorConfigService
     {
         private readonly string ConfigPath;
-
         public SensorConfigService()
         {
             ConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sensors.xlsx");
@@ -21,7 +21,7 @@ namespace EngineDA.Services
         {
             if (!File.Exists(ConfigPath))
             {
-                return new ObservableCollection<SensorConfig>();
+                return new ObservableCollection<SensorConfig>(); 
             }
 
             var list = MiniExcel.Query<SensorConfig>(ConfigPath, sheetName).ToList();

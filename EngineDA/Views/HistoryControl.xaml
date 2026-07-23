@@ -145,17 +145,17 @@
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock
                                     x:Name="TxtName"
-                                    Width="120"
+                                    Width="100"
                                     FontWeight="SemiBold"
                                     Foreground="{DynamicResource PrimaryTextBrush}"
                                     Text="{Binding Name}" />
                                 <TextBlock
                                     x:Name="TxtCh"
-                                    Width="65"
+                                    Width="120"
                                     VerticalAlignment="Center"
                                     FontSize="11"
                                     Foreground="{DynamicResource ThirdTextBrush}"
-                                    Text="{Binding Channel, StringFormat='[CH:{0}]'}" />
+                                    Text="{Binding ChannelName, StringFormat='[ChannelName]'}" />
                                 <TextBlock
                                     x:Name="TxtUnit"
                                     VerticalAlignment="Center"

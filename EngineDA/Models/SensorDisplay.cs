@@ -12,9 +12,26 @@ namespace EngineDA.Models
         public static double DeadZone = 0.0;
 
         [ObservableProperty] private string name = "";
-        [ObservableProperty] private int channel;
-        [ObservableProperty] private int orderIndex = 0;
 
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(DisplayChannel))]
+        private int channel;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(DisplayChannel))]
+        private string machineName = "";
+
+        public string DisplayChannel
+        {
+            get
+            {
+                if (MachineName == "工控机1") return $"IPC1-CH{Channel}";
+                if (MachineName == "工控机2") return $"IPC2-CH{Channel}";
+                return $"CH{Channel}";
+            }
+        }
+
+        [ObservableProperty] private int orderIndex = 0;
         private string unit = "";
         public string Unit
         {
@@ -22,6 +39,17 @@ namespace EngineDA.Models
             set
             {
                 SetProperty(ref unit, value);
+
+                string u = value?.Trim() ?? "";
+                if (u == "K")
+                {
+                    ShowAsKelvin = true;
+                }
+                else if (u == "℃" || u == "°C")
+                {
+                    ShowAsKelvin = false;
+                }
+
                 OnPropertyChanged(nameof(DisplayGroup));
                 OnPropertyChanged(nameof(IsTemperatureSensor));
                 OnPropertyChanged(nameof(CurrentUnit));
@@ -107,7 +135,7 @@ namespace EngineDA.Models
                 if (u == "L/min") return "🌊 流量";
                 if (u == "m/s") return "🚀 速度";
                 if (u == "mm") return "📏 位移";
-                if (u == "g") return "📳 振动";
+                if (u == "g" || u == "m/s2") return "📳 振动";
                 if (u == "KN") return "🗡 推力";
                 if (u == "L/S") return "🐺 流量";
                 return "📁 其他数据";

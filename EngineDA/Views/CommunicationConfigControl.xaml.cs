@@ -4,16 +4,20 @@ using CommunityToolkit.Mvvm.Messaging;
 using System;
 using System.Windows;
 using System.Windows.Input;
+using EngineDA.ViewModels;
 
 namespace EngineDA.Views
 {
     public partial class CommunicationConfigControl : Window
     {
         private readonly string iniPath;
-
+        ConfigViewModel viewModel;
+        HistoryControl historyControl;
         public CommunicationConfigControl(string iniPath)
         {
             InitializeComponent();
+            viewModel = new ConfigViewModel();
+            historyControl = new HistoryControl();
             this.iniPath = iniPath;
             LoadConfig();
         }
@@ -28,11 +32,17 @@ namespace EngineDA.Views
 
         private void LoadConfig()
         {
-            txtLocalIP.Text = "0.0.0.0";
-            txtLocalIP.IsEnabled = false;
+            // 加载 工控机1 配置
+            string enableIpc1 = IniConfigHelper.ReadIniData("IPC1", "Enable", "True", iniPath);
+            chkEnableIpc1.IsChecked = enableIpc1.Equals("True", StringComparison.OrdinalIgnoreCase);
+            txtIpc1IP.Text = IniConfigHelper.ReadIniData("IPC1", "IP", "192.168.1.100", iniPath);
+            txtIpc1Port.Text = IniConfigHelper.ReadIniData("IPC1", "PORT", "8063", iniPath);
 
-            txtMulticastIP.Text = IniConfigHelper.ReadIniData("Engine", "IP", "224.0.1.63", iniPath);
-            txtPort.Text = IniConfigHelper.ReadIniData("Engine", "PORT", "8063", iniPath);
+            // 加载 工控机2 配置
+            string enableIpc2 = IniConfigHelper.ReadIniData("IPC2", "Enable", "False", iniPath);
+            chkEnableIpc2.IsChecked = enableIpc2.Equals("True", StringComparison.OrdinalIgnoreCase);
+            txtIpc2IP.Text = IniConfigHelper.ReadIniData("IPC2", "IP", "192.168.1.101", iniPath);
+            txtIpc2Port.Text = IniConfigHelper.ReadIniData("IPC2", "PORT", "8064", iniPath);
         }
 
         private void BtnSave_Click(object sender, RoutedEventArgs e)
@@ -44,9 +54,15 @@ namespace EngineDA.Views
             {
                 try
                 {
-                    IniConfigHelper.WriteIniData("Engine", "IP", txtMulticastIP.Text.Trim(), iniPath);
-                    IniConfigHelper.WriteIniData("Engine", "PORT", txtPort.Text.Trim(), iniPath);
+                    IniConfigHelper.WriteIniData("IPC1", "Enable", chkEnableIpc1.IsChecked == true ? "True" : "False", iniPath);
+                    IniConfigHelper.WriteIniData("IPC1", "IP", txtIpc1IP.Text.Trim(), iniPath);
+                    IniConfigHelper.WriteIniData("IPC1", "PORT", txtIpc1Port.Text.Trim(), iniPath);
 
+                    IniConfigHelper.WriteIniData("IPC2", "Enable", chkEnableIpc2.IsChecked == true ? "True" : "False", iniPath);
+                    IniConfigHelper.WriteIniData("IPC2", "IP", txtIpc2IP.Text.Trim(), iniPath);
+                    IniConfigHelper.WriteIniData("IPC2", "PORT", txtIpc2Port.Text.Trim(), iniPath);
+                    viewModel.LoadConfigs();
+                    historyControl.AutoLoadSystemConfigs();
                     Close();
 
                     WeakReferenceMessenger.Default.Send(new CommConfigChangedMessage());

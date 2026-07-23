@@ -1,6 +1,7 @@
-﻿using EngineDA.Models;
+﻿using CommunityToolkit.Mvvm.Messaging;
+using EngineDA.Helpers;
+using EngineDA.Models;
 using EngineDA.Services;
-using Microsoft.Win32;
 using ScottPlot;
 using System;
 using System.Collections.Generic;
@@ -35,16 +36,46 @@ namespace EngineDA.Views
 
     public partial class HistoryControl : UserControl
     {
-        private ChannelData[]? _channelData; 
-        private List<SensorConfig> _sensorConfigs = new List<SensorConfig>();
+        private Dictionary<string, ChannelData> Datas = new Dictionary<string, ChannelData>();
+
+        // 核心修复1：使用 ObservableCollection，确保数据增删时界面自动刷新
+        private ObservableCollection<SensorConfig> _sensorConfigs = new ObservableCollection<SensorConfig>();
         private ScottPlot.Plottables.VerticalLine? _timeLine;
         private ObservableCollection<CursorItem> _cursorItems = new ObservableCollection<CursorItem>();
+
+        private bool enableIpc1;
+        private bool enableIpc2;
 
         public HistoryControl()
         {
             InitializeComponent();
+
+            // 核心修复2：数据源在构造函数中只绑定一次
             CursorDataList.ItemsSource = _cursorItems;
+            SensorListBox.ItemsSource = _sensorConfigs;
+
             AutoLoadSystemConfigs();
+
+            // 核心修复3：监听保存配置的广播消息，强制刷新当前历史曲线界面
+            WeakReferenceMessenger.Default.Register<HistoryControl, ConfigReloadMessage>(this, (r, m) =>
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    r.AutoLoadSystemConfigs();
+
+                    // 清空旧数据与图表，防止界面残留报错
+                    r.Datas.Clear();
+                    r._cursorItems.Clear();
+                    r.HistoryPlot.Plot.Clear();
+                    r.ConfigureChartStyle();
+                    r.HistoryPlot.Refresh();
+
+                    if (r.TimeSlider != null)
+                    {
+                        r.TimeSlider.Value = 0;
+                    }
+                });
+            });
         }
 
         private double GetStartTime()
@@ -55,35 +86,50 @@ namespace EngineDA.Views
 
         private void TxtStartTime_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (_channelData != null && SensorListBox.SelectedItems.Count > 0)
+            if (Datas.Count > 0 && SensorListBox.SelectedItems.Count > 0)
             {
                 SensorListBox_SelectionChanged(this, null!);
             }
         }
 
-        private void AutoLoadSystemConfigs()
+        public void AutoLoadSystemConfigs()
         {
             try
             {
+                string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
+
+                // 加入 .Trim() 防止 INI 读取时带有不可见空格
+                enableIpc1 = IniConfigHelper.ReadIniData("IPC1", "Enable", "True", iniPath).Trim().Equals("True", StringComparison.OrdinalIgnoreCase);
+                enableIpc2 = IniConfigHelper.ReadIniData("IPC2", "Enable", "False", iniPath).Trim().Equals("True", StringComparison.OrdinalIgnoreCase);
+
                 var configService = new SensorConfigService();
                 var sheetNames = configService.GetSheetNames();
+
+                // 触发 UI 列表清空
                 _sensorConfigs.Clear();
 
                 foreach (var sheetName in sheetNames)
                 {
+                    // 拦截未启用的工控机
+                    if (sheetName == "工控机1" && !enableIpc1) continue;
+                    if (sheetName == "工控机2" && !enableIpc2) continue;
+
                     var configs = configService.LoadConfigs(sheetName);
                     foreach (var config in configs)
                     {
                         if (!string.IsNullOrWhiteSpace(config.Name) && !config.Name.Contains("备用"))
                         {
+                            config.ChannelName = $"{sheetName} - CH{config.Channel}";
+                            // 添加新数据，自动通知 UI 生成列表项
                             _sensorConfigs.Add(config);
                         }
                     }
                 }
 
-                _sensorConfigs = _sensorConfigs.OrderBy(c => c.Channel).ToList();
-                SensorListBox.ItemsSource = _sensorConfigs;
-                TxtStatus.Text = $"系统配置就绪。\n共加载 {_sensorConfigs.Count} 个传感器。";
+                if (TxtStatus != null)
+                {
+                    TxtStatus.Text = $"系统配置就绪。\n共加载 {_sensorConfigs.Count} 个传感器。";
+                }
             }
             catch (Exception ex)
             {
@@ -91,93 +137,123 @@ namespace EngineDA.Views
             }
         }
 
-        private async void LoadDatFiles_Click(object sender, RoutedEventArgs e)
+        private void LoadDatFiles_Click(object sender, RoutedEventArgs e)
         {
-            if (_sensorConfigs == null || _sensorConfigs.Count == 0) return;
-
-            OpenFileDialog openFileDialog = new OpenFileDialog
+            if (_sensorConfigs == null || _sensorConfigs.Count == 0)
             {
-                Multiselect = true,
-                Filter = "Dat files (*.dat)|*.dat",
-                Title = "请全选该批次的 4 个原始数据文件"
+                MessageBox.Show("请先加载传感器配置文件 (Excel)！", "提示");
+                return;
+            }
+
+            var folderDialog = new Microsoft.Win32.OpenFolderDialog
+            {
+                Title = "请选择包含“工控机1”和“工控机2”数据文件夹的总目录"
             };
 
-            if (openFileDialog.ShowDialog() == true)
+            if (folderDialog.ShowDialog() == true)
             {
-                var filePaths = openFileDialog.FileNames;
-                string? fileBid0 = filePaths.FirstOrDefault(f => f.Contains("BID#0"));
-                string? fileBid1 = filePaths.FirstOrDefault(f => f.Contains("BID#1"));
-                string? fileBid2 = filePaths.FirstOrDefault(f => f.Contains("BID#2"));
-                string? fileBid3 = filePaths.FirstOrDefault(f => f.Contains("BID#3"));
+                string selectedPath = folderDialog.FolderName;
+                string[] allDatFiles = Directory.GetFiles(selectedPath, "*.dat", SearchOption.AllDirectories);
+                _ = ProcessDataFilesAsync(allDatFiles);
+            }
+        }
 
-                if (fileBid0 == null || fileBid1 == null || fileBid2 == null || fileBid3 == null)
+        private async Task ProcessDataFilesAsync(string[] filePaths)
+        {
+            var targetFiles = filePaths.Where(f => f.Contains("BID#")).ToList();
+
+            if (targetFiles.Count != 8)
+            {
+                MessageBox.Show($"文件数量异常！\n预期需要 8 个数据文件，但实际在目录下找到了 {targetFiles.Count} 个。\n请确保所选路径下仅包含“工控机1”和“工控机2”两套数据。", "文件数量错误");
+                return;
+            }
+
+            var groupedByFolder = targetFiles.GroupBy(f => Path.GetDirectoryName(f))
+                                             .OrderBy(g => g.Key)
+                                             .ToList();
+
+            if (groupedByFolder.Count != 2)
+            {
+                MessageBox.Show($"文件夹结构错误！\n预期数据应分别放在 2 个文件夹中，但当前文件分布在 {groupedByFolder.Count} 个文件夹里。", "目录结构错误");
+                return;
+            }
+
+            var ipc1Files = groupedByFolder[0].ToList();
+            var ipc2Files = groupedByFolder[1].ToList();
+
+            string[] orderedFiles = new string[8];
+
+            orderedFiles[0] = ipc1Files.FirstOrDefault(f => f.Contains("BID#0"))!;
+            orderedFiles[1] = ipc1Files.FirstOrDefault(f => f.Contains("BID#1"))!;
+            orderedFiles[2] = ipc1Files.FirstOrDefault(f => f.Contains("BID#2"))!;
+            orderedFiles[3] = ipc1Files.FirstOrDefault(f => f.Contains("BID#3"))!;
+            orderedFiles[4] = ipc2Files.FirstOrDefault(f => f.Contains("BID#0"))!;
+            orderedFiles[5] = ipc2Files.FirstOrDefault(f => f.Contains("BID#1"))!;
+            orderedFiles[6] = ipc2Files.FirstOrDefault(f => f.Contains("BID#2"))!;
+            orderedFiles[7] = ipc2Files.FirstOrDefault(f => f.Contains("BID#3"))!;
+
+            if (orderedFiles.Any(f => string.IsNullOrEmpty(f)))
+            {
+                MessageBox.Show("文件匹配失败！\n请检查两台工控机的文件夹内，是否都完整包含了 BID#0 到 BID#3。", "文件缺失");
+                return;
+            }
+
+            TxtStatus.Text = "准备解析...";
+            ParseProgressBar.Value = 0;
+            ParseProgressBar.Visibility = Visibility.Visible;
+            SensorListBox.IsEnabled = false;
+
+            var progress = new Progress<int>(percent =>
+            {
+                ParseProgressBar.Value = percent;
+                TxtStatus.Text = $"正在解析与合并数据: {percent}%";
+            });
+
+            try
+            {
+                await Task.Run(() =>
                 {
-                    MessageBox.Show("未找齐包含 BID#0 至 BID#3 的文件！", "错误");
-                    return;
-                }
-
-                string[] orderedFiles = { fileBid0, fileBid1, fileBid2, fileBid3 };
-
-                TxtStatus.Text = "准备解析...";
-                ParseProgressBar.Value = 0;
-                ParseProgressBar.Visibility = Visibility.Visible;
-                SensorListBox.IsEnabled = false;
-
-                var progress = new Progress<int>(percent =>
-                {
-                    ParseProgressBar.Value = percent;
-                    if (percent <= 60)
-                    {
-                        TxtStatus.Text = $"正在读取与解析原始文件...";
-                    }
-                    else if (percent < 100)
-                    {
-                        TxtStatus.Text = $"正在对数据进行处理...";
-                    }
-                    else
-                    {
-                        TxtStatus.Text = "数据处理完成，正在渲染图表...";
-                    }
+                    System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.Lowest;
+                    ParseAndMergeHighFrequencyData(orderedFiles, progress);
                 });
-
-                try
-                {
-                    await Task.Run(() =>
-                    {
-                        System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.Lowest;
-
-                        ParseAndMergeHighFrequencyData(orderedFiles, progress);
-                    });
-                    TxtStatus.Text = "解析与渲染完毕！";
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"解析数据失败: {ex.Message}", "错误");
-                    TxtStatus.Text = "解析失败！";
-                }
-                finally
-                {
-                    await Task.Delay(500);
-                    ParseProgressBar.Visibility = Visibility.Collapsed;
-                    SensorListBox.IsEnabled = true;
-                }
+                TxtStatus.Text = "解析与渲染完毕！";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"解析失败: {ex.Message}", "错误");
+                TxtStatus.Text = "解析失败";
+            }
+            finally
+            {
+                ParseProgressBar.Visibility = Visibility.Collapsed;
+                SensorListBox.IsEnabled = true;
             }
         }
 
         private void ParseAndMergeHighFrequencyData(string[] orderedFiles, IProgress<int> progress)
         {
             progress.Report(1);
-            ParsedFile data0 = ExtractAllNumbersFast(orderedFiles[0], progress, 1, 15);
-            ParsedFile data1 = ExtractAllNumbersFast(orderedFiles[1], progress, 15, 30);
-            ParsedFile data2 = ExtractAllNumbersFast(orderedFiles[2], progress, 30, 45);
-            ParsedFile data3 = ExtractAllNumbersFast(orderedFiles[3], progress, 45, 60);
 
-            _channelData = new ChannelData[224];
+            ParsedFile data0 = ExtractAllNumbersFast(orderedFiles[0], progress, 1, 8);
+            ParsedFile data1 = ExtractAllNumbersFast(orderedFiles[1], progress, 8, 16);
+            ParsedFile data2 = ExtractAllNumbersFast(orderedFiles[2], progress, 16, 24);
+            ParsedFile data3 = ExtractAllNumbersFast(orderedFiles[3], progress, 24, 32);
+            ParsedFile data4 = ExtractAllNumbersFast(orderedFiles[4], progress, 32, 40);
+            ParsedFile data5 = ExtractAllNumbersFast(orderedFiles[5], progress, 40, 48);
+            ParsedFile data6 = ExtractAllNumbersFast(orderedFiles[6], progress, 48, 56);
+            ParsedFile data7 = ExtractAllNumbersFast(orderedFiles[7], progress, 56, 60);
 
-            ProcessCardData(data0, 32, 0, 20000.0, progress, 60, 70); // 20kHz
-            ProcessCardData(data1, 64, 32, 1000.0, progress, 70, 80); // 1kHz
-            ProcessCardData(data2, 64, 96, 1000.0, progress, 80, 90); // 1kHz
-            ProcessCardData(data3, 64, 160, 1000.0, progress, 90, 100); // 1kHz
+            Datas.Clear();
+
+            ProcessCardData(data0, 32, 0, 20000.0, progress, 60, 65, "工控机1");
+            ProcessCardData(data1, 32, 32, 1000.0, progress, 65, 70, "工控机1");
+            ProcessCardData(data2, 32, 64, 1000.0, progress, 70, 75, "工控机1");
+            ProcessCardData(data3, 32, 96, 1000.0, progress, 75, 80, "工控机1");
+
+            ProcessCardData(data4, 32, 0, 1000.0, progress, 80, 85, "工控机2");
+            ProcessCardData(data5, 32, 32, 1000.0, progress, 85, 90, "工控机2");
+            ProcessCardData(data6, 32, 64, 1000.0, progress, 90, 95, "工控机2");
+            ProcessCardData(data7, 32, 96, 1000.0, progress, 95, 100, "工控机2");
 
             Application.Current.Dispatcher.Invoke(() =>
             {
@@ -187,7 +263,7 @@ namespace EngineDA.Views
             });
         }
 
-        private void ProcessCardData(ParsedFile data, int numChannels, int startChannelOffset, double sampleRate, IProgress<int> progress, int startPercent, int endPercent)
+        private void ProcessCardData(ParsedFile data, int numChannels, int startChannelOffset, double sampleRate, IProgress<int> progress, int startPercent, int endPercent, string device)
         {
             if (data.Values.Count == 0) { progress.Report(endPercent); return; }
             int count = data.Values.Count / numChannels;
@@ -221,7 +297,10 @@ namespace EngineDA.Views
                     if (actualWindowSize < 3) actualWindowSize = 3;
                     vals = ApplyHampelFilter(vals, actualWindowSize);
                 }
-                _channelData![startChannelOffset + ch] = new ChannelData
+
+                string key = $"{device} - CH{startChannelOffset + ch}";
+
+                Datas[key] = new ChannelData
                 {
                     Values = vals,
                     SampleRate = sampleRate
@@ -324,8 +403,8 @@ namespace EngineDA.Views
 
         private void SensorListBox_SelectionChanged(object? sender, SelectionChangedEventArgs? e)
         {
-            if (_channelData == null) return;
-
+            if (Datas.Count == 0) return;
+            _cursorItems.Clear();
             HistoryPlot.Plot.Clear();
             ConfigureChartStyle();
 
@@ -334,12 +413,8 @@ namespace EngineDA.Views
 
             foreach (SensorConfig config in SensorListBox.SelectedItems)
             {
-                if (config.Channel >= 0 && config.Channel < 224 && _channelData[config.Channel] != null)
+                if (Datas.TryGetValue(config.ChannelName!, out var chData) && chData.Values != null)
                 {
-                    var chData = _channelData[config.Channel];
-
-                    if (chData.Values == null) continue;
-
                     int n = chData.Values.Length;
                     double[] ys = new double[n];
                     for (int i = 0; i < n; i++)
@@ -352,7 +427,17 @@ namespace EngineDA.Views
                     sig.Data.XOffset = currentStartTime;
 
                     string unitStr = string.IsNullOrEmpty(config.Unit) ? "" : $" ({config.Unit})";
-                    sig.LegendText = $"{config.Name}{unitStr} [CH:{config.Channel}]";
+                    sig.LegendText = $"{config.Name}{unitStr} [{config.ChannelName}]";
+
+                    // 取第一个物理值显示在光标数据栏，修复之前的字符串格式化错误
+                    double initialPhysicalVal = ys.Length > 0 ? ys[0] : 0;
+
+                    _cursorItems.Add(new CursorItem
+                    {
+                        Name = config.Name ?? "未知",
+                        ChannelInfo = $"[{config.ChannelName}]",
+                        Value = $"{initialPhysicalVal:F3} {config.Unit}"
+                    });
 
                     double currentChannelMaxTime = currentStartTime + (n - 1) * chData.Period;
                     if (currentChannelMaxTime > maxTimeForSlider)
@@ -377,7 +462,7 @@ namespace EngineDA.Views
 
         private void TimeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (_channelData == null || SensorListBox.SelectedItems.Count == 0 || _timeLine == null) return;
+            if (Datas.Count == 0 || SensorListBox.SelectedItems.Count == 0 || _timeLine == null) return;
 
             double xSec = e.NewValue;
             double currentStartTime = GetStartTime();
@@ -393,12 +478,8 @@ namespace EngineDA.Views
             {
                 foreach (SensorConfig config in SensorListBox.SelectedItems)
                 {
-                    if (config.Channel >= 0 && config.Channel < 224 && _channelData[config.Channel] != null)
+                    if (Datas.TryGetValue(config.ChannelName!, out var chData) && chData.Values != null)
                     {
-                        var chData = _channelData[config.Channel];
-
-                        if (chData.Values == null) continue; // [修改] 判空，修复 CS8602 警告
-
                         int xIndex = (int)Math.Round(timeFromStart * chData.SampleRate);
 
                         if (xIndex >= 0 && xIndex < chData.Values.Length)
@@ -407,8 +488,8 @@ namespace EngineDA.Views
 
                             _cursorItems.Add(new CursorItem
                             {
-                                Name = config.Name ?? "未知", // [修改] 处理可能为null，修复 CS8601
-                                ChannelInfo = $"[CH:{config.Channel}]",
+                                Name = config.Name ?? "未知",
+                                ChannelInfo = $"[{config.ChannelName}]",
                                 Value = $"{physicalVal:F3} {config.Unit}"
                             });
                         }

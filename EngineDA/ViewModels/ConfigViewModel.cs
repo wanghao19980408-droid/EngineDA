@@ -1,15 +1,22 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using EngineDA.Helpers;
 using EngineDA.Models;
 using EngineDA.Services;
+using System;
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
 
 namespace EngineDA.ViewModels
 {
     public partial class ConfigViewModel : ObservableObject
     {
         public ObservableCollection<SheetConfig> Sheets { get; set; } = new();
+
+        private bool enableIpc1;
+        private bool enableIpc2;
 
         [ObservableProperty]
         private SensorConfig? selectedSensorConfig;
@@ -18,6 +25,11 @@ namespace EngineDA.ViewModels
 
         public ConfigViewModel()
         {
+            string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
+
+            enableIpc1 = IniConfigHelper.ReadIniData("IPC1", "Enable", "True", iniPath).Equals("True", StringComparison.OrdinalIgnoreCase);
+            enableIpc2 = IniConfigHelper.ReadIniData("IPC2", "Enable", "False", iniPath).Equals("True", StringComparison.OrdinalIgnoreCase);
+
             _service = new SensorConfigService();
             LoadConfigs();
         }
@@ -27,14 +39,16 @@ namespace EngineDA.ViewModels
             Sheets.Clear();
             var sheetNames = _service.GetSheetNames();
 
-            if (sheetNames.Count == 0)
+            if (sheetNames == null || sheetNames.Count == 0)
             {
-                Sheets.Add(new SheetConfig { SheetName = "发动机", SensorConfigs = new ObservableCollection<SensorConfig>() });
                 return;
             }
 
             foreach (var sheet in sheetNames)
             {
+                if (sheet == "工控机1" && !enableIpc1) continue;
+                if (sheet == "工控机2" && !enableIpc2) continue;
+
                 var sheetConfig = new SheetConfig
                 {
                     SheetName = sheet,
@@ -44,9 +58,7 @@ namespace EngineDA.ViewModels
             }
         }
 
-        public IRelayCommand SaveAndRestartCommand => new RelayCommand(SaveAndRestart);
-
-
+        [RelayCommand]
         private void SaveAndRestart()
         {
             var dialog = new Views.ConfirmDialog("确定要保存当前配置并立即生效吗？");
@@ -63,12 +75,12 @@ namespace EngineDA.ViewModels
                     var successDialog = new Views.ConfirmDialog("配置保存成功，已实时生效！");
                     successDialog.ShowDialog();
                 }
-                catch (System.IO.IOException)
+                catch (IOException)
                 {
                     var errorDialog = new Views.ConfirmDialog("保存失败：配置文件正被占用！\n请检查是否在 Excel 中打开了 sensors.xlsx。");
                     errorDialog.ShowDialog();
                 }
-                catch (System.Exception ex)
+                catch (Exception ex)
                 {
                     var errorDialog = new Views.ConfirmDialog($"保存失败：{ex.Message}");
                     errorDialog.ShowDialog();

@@ -12,6 +12,8 @@ using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Threading;
+using System;
+using System.Linq;
 
 namespace EngineDA.ViewModels
 {
@@ -24,11 +26,14 @@ namespace EngineDA.ViewModels
         private readonly CollectionView _filteredSensorsView;
         public ICollectionView FilteredSensorsView => _filteredSensorsView;
 
-        private UdpDataService? _udpService;
+        private UdpDataService? _udpService1;
+        private UdpDataService? _udpService2;
+        private bool enableIpc1 = false;
+        private bool enableIpc2 = false;
         private readonly SensorConfigService _configService;
 
         private readonly Stopwatch _processStopwatch = new();
-        private DispatcherTimer? _clockTimer; 
+        private DispatcherTimer? _clockTimer;
 
         private bool _isDisposed = false;
         #endregion
@@ -56,6 +61,7 @@ namespace EngineDA.ViewModels
         {
             _configService = new SensorConfigService();
 
+            LoadIpcEnableConfig();
             LoadSensorConfigs();
 
             _filteredSensorsView = (CollectionView)CollectionViewSource.GetDefaultView(Sensors);
@@ -68,6 +74,7 @@ namespace EngineDA.ViewModels
             {
                 Application.Current?.Dispatcher.Invoke(() =>
                 {
+                    r.LoadIpcEnableConfig(); 
                     r.LoadSensorConfigs();
                     r._filteredSensorsView?.Refresh();
                 });
@@ -80,6 +87,14 @@ namespace EngineDA.ViewModels
                     r.RestartUdp();
                 });
             });
+        }
+
+        private void LoadIpcEnableConfig()
+        {
+            string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
+            IniConfigHelper.FilePath = iniPath;
+            enableIpc1 = IniConfigHelper.ReadIniData("IPC1", "Enable", "True", iniPath).Equals("True", StringComparison.OrdinalIgnoreCase);
+            enableIpc2 = IniConfigHelper.ReadIniData("IPC2", "Enable", "False", iniPath).Equals("True", StringComparison.OrdinalIgnoreCase);
         }
 
         private void SetupGrouping()
@@ -192,19 +207,33 @@ namespace EngineDA.ViewModels
 
         public void InitializeUdp()
         {
-            if (_udpService != null) return;
+            if (_udpService1 != null || _udpService2 != null) return;
 
             try
             {
-                _udpService = new UdpDataService();
                 string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
-                IniConfigHelper.FilePath = iniPath;
-
                 string localIp = "0.0.0.0";
-                string multicastIp = IniConfigHelper.ReadIniData("Engine", "IP", "224.0.1.63");
-                int port = int.Parse(IniConfigHelper.ReadIniData("Engine", "PORT", "8063"));
-                _udpService.Initialize(localIp, multicastIp, port);
-                _udpService.DataReceived += OnGeneralUdpDataReceived;
+
+                // 初始化 工控机1
+                if (enableIpc1)
+                {
+                    _udpService1 = new UdpDataService();
+                    string ip1 = IniConfigHelper.ReadIniData("IPC1", "IP", "192.168.1.100", iniPath);
+                    int port1 = int.Parse(IniConfigHelper.ReadIniData("IPC1", "PORT", "8063", iniPath));
+                    _udpService1.Initialize(localIp, ip1, port1);
+                    _udpService1.DataReceived += OnGeneralUdpDataReceived;
+                }
+
+                // 初始化 工控机2
+                if (enableIpc2)
+                {
+                    _udpService2 = new UdpDataService();
+                    string ip2 = IniConfigHelper.ReadIniData("IPC2", "IP", "192.168.1.101", iniPath);
+                    int port2 = int.Parse(IniConfigHelper.ReadIniData("IPC2", "PORT", "8064", iniPath));
+                    _udpService2.Initialize(localIp, ip2, port2);
+                    _udpService2.DataReceived += OnGeneralUdpDataReceived;
+                }
+
                 UpdateConnectionStatus();
             }
             catch (Exception ex)
@@ -217,13 +246,26 @@ namespace EngineDA.ViewModels
         {
             try
             {
-                if (_udpService != null)
+                if (_udpService1 != null)
                 {
-                    _udpService.DataReceived -= OnGeneralUdpDataReceived;
-                    _udpService.Stop();
-                    _udpService = null;
+                    _udpService1.DataReceived -= OnGeneralUdpDataReceived;
+                    _udpService1.Stop();
+                    _udpService1 = null;
                 }
+
+                if (_udpService2 != null)
+                {
+                    _udpService2.DataReceived -= OnGeneralUdpDataReceived;
+                    _udpService2.Stop();
+                    _udpService2 = null;
+                }
+
                 IsConnected = false;
+
+                LoadIpcEnableConfig();
+                LoadSensorConfigs();
+                _filteredSensorsView?.Refresh();
+
                 InitializeUdp();
             }
             catch (Exception ex)
@@ -236,8 +278,14 @@ namespace EngineDA.ViewModels
         {
             App.Current.Dispatcher.InvokeAsync(() =>
             {
+                bool isFromIpc1 = sender == _udpService1;
+                bool isFromIpc2 = sender == _udpService2;
+
                 foreach (var sensor in Sensors)
                 {
+                    if (isFromIpc1 && sensor.MachineName != "工控机1") continue;
+                    if (isFromIpc2 && sensor.MachineName != "工控机2") continue;
+
                     if (sensor.Channel < 0 || sensor.Channel >= data.Length) continue;
                     sensor.RawVoltage = data[sensor.Channel] / 1000f;
                 }
@@ -260,7 +308,11 @@ namespace EngineDA.ViewModels
 
         private void UpdateConnectionStatus()
         {
-            IsConnected = _udpService?.IsConnected ?? false;
+            bool is1Connected = _udpService1?.IsConnected ?? false;
+            bool is2Connected = _udpService2?.IsConnected ?? false;
+
+            IsConnected = is1Connected || is2Connected;
+
             OnPropertyChanged(nameof(ConnectionStatusText));
             OnPropertyChanged(nameof(ConnectionStatusColor));
         }
@@ -281,14 +333,30 @@ namespace EngineDA.ViewModels
             Sensors.Clear();
             int initialOrder = 0;
 
-            var configs = _configService.LoadConfigs("发动机");
-            foreach (var cfg in configs)
+            if (enableIpc1)
             {
-                if (cfg.Name == "备用") continue;
-                var newSensor = MapConfigToSensor(cfg);
-                newSensor.OrderIndex = initialOrder++;
-                newSensor.PropertyChanged += Sensor_PropertyChanged;
-                Sensors.Add(newSensor);
+                var configs1 = _configService.LoadConfigs("工控机1");
+                foreach (var cfg in configs1)
+                {
+                    if (cfg.Name == "备用") continue;
+                    var newSensor = MapConfigToSensor(cfg, "工控机1");
+                    newSensor.OrderIndex = initialOrder++;
+                    newSensor.PropertyChanged += Sensor_PropertyChanged;
+                    Sensors.Add(newSensor);
+                }
+            }
+
+            if (enableIpc2)
+            {
+                var configs2 = _configService.LoadConfigs("工控机2");
+                foreach (var cfg in configs2)
+                {
+                    if (cfg.Name == "备用") continue;
+                    var newSensor = MapConfigToSensor(cfg, "工控机2");
+                    newSensor.OrderIndex = initialOrder++;
+                    newSensor.PropertyChanged += Sensor_PropertyChanged;
+                    Sensors.Add(newSensor);
+                }
             }
         }
 
@@ -296,15 +364,14 @@ namespace EngineDA.ViewModels
         {
         }
 
-        private SensorDisplay MapConfigToSensor(SensorConfig cfg)
+        private SensorDisplay MapConfigToSensor(SensorConfig cfg, string machineName)
         {
             return new SensorDisplay
             {
                 Name = cfg.Name ?? $"通道{cfg.Channel}",
                 Channel = cfg.Channel,
+                MachineName = machineName,
                 Unit = cfg.Unit ?? "",
-                Min = cfg.Min,
-                Max = cfg.Max,
                 Kvalue = cfg.K,
                 Bvalue = cfg.B,
                 RawVoltage = 0,
@@ -326,8 +393,11 @@ namespace EngineDA.ViewModels
 
             try
             {
-                _udpService?.Stop();
-                _udpService = null;
+                _udpService1?.Stop();
+                _udpService1 = null;
+
+                _udpService2?.Stop();
+                _udpService2 = null;
             }
             catch { }
 

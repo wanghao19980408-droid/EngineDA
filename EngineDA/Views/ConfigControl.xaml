@@ -244,19 +244,6 @@
                                     EditingElementStyle="{StaticResource CenterAlignedTextBox}"
                                     ElementStyle="{StaticResource CenterAlignedTextBlock}"
                                     Header="单位" />
-                                <DataGridTextColumn
-                                    Width="1*"
-                                    Binding="{Binding Min}"
-                                    EditingElementStyle="{StaticResource CenterAlignedTextBox}"
-                                    ElementStyle="{StaticResource CenterAlignedTextBlock}"
-                                    Header="下限" />
-                                <DataGridTextColumn
-                                    Width="1*"
-                                    Binding="{Binding Max}"
-                                    EditingElementStyle="{StaticResource CenterAlignedTextBox}"
-                                    ElementStyle="{StaticResource CenterAlignedTextBlock}"
-                                    Header="上限" />
-
                                 <DataGridTemplateColumn Width="1.5*" Header="指示颜色">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
