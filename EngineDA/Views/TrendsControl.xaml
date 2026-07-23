@@ -35,13 +35,19 @@
                     ScrollViewer.CanContentScroll="True"
                     VirtualizingPanel.IsVirtualizing="True"
                     VirtualizingPanel.VirtualizationMode="Recycling">
-
                     <ComboBox.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock
-                                Margin="2,0"
-                                Background="Transparent"
-                                Text="{Binding Name}" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock
+                                    Margin="2,0,6,0"
+                                    FontWeight="Bold"
+                                    Foreground="#A0A0A0"
+                                    Text="{Binding DisplayChannel}" />
+                                <TextBlock
+                                    Margin="2,0"
+                                    Background="Transparent"
+                                    Text="{Binding Name}" />
+                            </StackPanel>
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
 

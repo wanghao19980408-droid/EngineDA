@@ -4,6 +4,7 @@ using EngineDA.Models;
 using EngineDA.Services;
 using ScottPlot;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -36,34 +37,27 @@ namespace EngineDA.Views
 
     public partial class HistoryControl : UserControl
     {
-        private Dictionary<string, ChannelData> Datas = new Dictionary<string, ChannelData>();
+        private ConcurrentDictionary<string, ChannelData> Datas = new ConcurrentDictionary<string, ChannelData>();
 
-        // 核心修复1：使用 ObservableCollection，确保数据增删时界面自动刷新
         private ObservableCollection<SensorConfig> _sensorConfigs = new ObservableCollection<SensorConfig>();
         private ScottPlot.Plottables.VerticalLine? _timeLine;
         private ObservableCollection<CursorItem> _cursorItems = new ObservableCollection<CursorItem>();
-
-        private bool enableIpc1;
-        private bool enableIpc2;
 
         public HistoryControl()
         {
             InitializeComponent();
 
-            // 核心修复2：数据源在构造函数中只绑定一次
             CursorDataList.ItemsSource = _cursorItems;
             SensorListBox.ItemsSource = _sensorConfigs;
 
             AutoLoadSystemConfigs();
 
-            // 核心修复3：监听保存配置的广播消息，强制刷新当前历史曲线界面
             WeakReferenceMessenger.Default.Register<HistoryControl, ConfigReloadMessage>(this, (r, m) =>
             {
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     r.AutoLoadSystemConfigs();
 
-                    // 清空旧数据与图表，防止界面残留报错
                     r.Datas.Clear();
                     r._cursorItems.Clear();
                     r.HistoryPlot.Plot.Clear();
@@ -96,31 +90,19 @@ namespace EngineDA.Views
         {
             try
             {
-                string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
-
-                // 加入 .Trim() 防止 INI 读取时带有不可见空格
-                enableIpc1 = IniConfigHelper.ReadIniData("IPC1", "Enable", "True", iniPath).Trim().Equals("True", StringComparison.OrdinalIgnoreCase);
-                enableIpc2 = IniConfigHelper.ReadIniData("IPC2", "Enable", "False", iniPath).Trim().Equals("True", StringComparison.OrdinalIgnoreCase);
-
                 var configService = new SensorConfigService();
                 var sheetNames = configService.GetSheetNames();
 
-                // 触发 UI 列表清空
                 _sensorConfigs.Clear();
 
                 foreach (var sheetName in sheetNames)
                 {
-                    // 拦截未启用的工控机
-                    if (sheetName == "工控机1" && !enableIpc1) continue;
-                    if (sheetName == "工控机2" && !enableIpc2) continue;
-
                     var configs = configService.LoadConfigs(sheetName);
                     foreach (var config in configs)
                     {
                         if (!string.IsNullOrWhiteSpace(config.Name) && !config.Name.Contains("备用"))
                         {
                             config.ChannelName = $"{sheetName} - CH{config.Channel}";
-                            // 添加新数据，自动通知 UI 生成列表项
                             _sensorConfigs.Add(config);
                         }
                     }
@@ -429,7 +411,6 @@ namespace EngineDA.Views
                     string unitStr = string.IsNullOrEmpty(config.Unit) ? "" : $" ({config.Unit})";
                     sig.LegendText = $"{config.Name}{unitStr} [{config.ChannelName}]";
 
-                    // 取第一个物理值显示在光标数据栏，修复之前的字符串格式化错误
                     double initialPhysicalVal = ys.Length > 0 ? ys[0] : 0;
 
                     _cursorItems.Add(new CursorItem

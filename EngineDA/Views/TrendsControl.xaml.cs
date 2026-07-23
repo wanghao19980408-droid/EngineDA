@@ -18,7 +18,7 @@ namespace EngineDA.Views
     public partial class TrendsControl : UserControl
     {
         private DashboardViewModel? _dashboardVM;
-        private readonly Dictionary<int, ActiveChannel> _activeChannels = new();
+        private readonly Dictionary<string, ActiveChannel> _activeChannels = new();
 
         private ScottPlot.WPF.WpfPlot[] _plots;
         private Crosshair[] _crosshairs;
@@ -47,7 +47,11 @@ namespace EngineDA.Views
             {
                 _dashboardVM = vm;
 
-                var sortedSensors = _dashboardVM.Sensors.OrderBy(s => s.Channel).ToList();
+                var sortedSensors = _dashboardVM.Sensors
+                                                .OrderBy(s => s.MachineName)        
+                                                .ThenBy(s => s.Channel)
+                                                .ToList();
+
                 CmbSensors.ItemsSource = sortedSensors;
                 if (sortedSensors.Count > 0) CmbSensors.SelectedIndex = 0;
             }
@@ -121,7 +125,7 @@ namespace EngineDA.Views
             foreach (var kvp in _activeChannels)
             {
                 var ch = kvp.Value;
-                var sensor = _dashboardVM.Sensors.FirstOrDefault(s => s.Channel == ch.Config.Channel);
+                var sensor = _dashboardVM.Sensors.FirstOrDefault(s => s.DisplayChannel == ch.Config.DisplayChannel);
                 if (sensor != null)
                 {
                     double val = sensor.Value;
@@ -249,8 +253,8 @@ namespace EngineDA.Views
                     if (timeDiffDays < TimeSpan.FromSeconds(0.5).TotalDays)
                     {
                         closestTimeOA = closest.TimeOA;
-                        // 这里修改为 Config.CurrentUnit 以支持自动单位切换
-                        tooltipText += $"■ {ch.Config.Name}: {closest.Value:F3} {ch.Config.CurrentUnit}\n";
+
+                        tooltipText += $"{ch.Config.DisplayChannel} {ch.Config.Name}: {closest.Value:F3} {ch.Config.CurrentUnit}\n";
                         hasData = true;
                     }
                 }
@@ -334,6 +338,7 @@ namespace EngineDA.Views
             InfoPanel.Children.Clear();
             var sortedChannels = _activeChannels.Values
                 .OrderByDescending(c => c.Config.IsImportant)
+                .ThenBy(c => c.Config.MachineName)
                 .ThenBy(c => c.Config.Channel)
                 .ToList();
 
@@ -347,7 +352,7 @@ namespace EngineDA.Views
         {
             if (CmbSensors.SelectedItem is SensorDisplay selectedSensor)
             {
-                if (_activeChannels.ContainsKey(selectedSensor.Channel)) return;
+                if (_activeChannels.ContainsKey(selectedSensor.DisplayChannel)) return;
 
                 int targetPlotIndex = CmbTargetPlot.SelectedIndex;
                 if (targetPlotIndex < 0 || targetPlotIndex >= _plots.Length) targetPlotIndex = 0;
@@ -363,7 +368,7 @@ namespace EngineDA.Views
                 logger.ManageAxisLimits = false;
 
                 var channel = new ActiveChannel(selectedSensor, logger, brush, targetPlot, targetPlotIndex + 1, 2000, RemoveSingleChannel);
-                _activeChannels.Add(selectedSensor.Channel, channel);
+                _activeChannels.Add(selectedSensor.DisplayChannel, channel);
 
                 RefreshInfoPanelLayout();
             }
@@ -374,7 +379,7 @@ namespace EngineDA.Views
             if (channel == null) return;
 
             channel.ParentPlot.Plot.Remove(channel.Logger);
-            _activeChannels.Remove(channel.Config.Channel);
+            _activeChannels.Remove(channel.Config.DisplayChannel);
 
             RefreshInfoPanelLayout();
             channel.ParentPlot.Refresh();
@@ -417,7 +422,7 @@ namespace EngineDA.Views
 
         public class LayoutConfigItem
         {
-            public int Channel { get; set; }
+            public string? Channel { get; set; }
             public int PlotIndex { get; set; }
             public byte R { get; set; }
             public byte G { get; set; }
@@ -440,7 +445,7 @@ namespace EngineDA.Views
                     var color = ((SolidColorBrush)((System.Windows.Shapes.Ellipse)((Grid)((Grid)ch.UIPanel.Child).Children[0]).Children[0]).Fill).Color;
                     return new LayoutConfigItem
                     {
-                        Channel = ch.Config.Channel,
+                        Channel = ch.Config.DisplayChannel,
                         PlotIndex = Array.IndexOf(_plots, ch.ParentPlot),
                         R = color.R,
                         G = color.G,
@@ -476,7 +481,7 @@ namespace EngineDA.Views
 
                 foreach (var item in layoutList)
                 {
-                    var sensor = _dashboardVM.Sensors.FirstOrDefault(s => s.Channel == item.Channel);
+                    var sensor = _dashboardVM.Sensors.FirstOrDefault(s => s.DisplayChannel == item.Channel);
                     if (sensor == null) continue;
 
                     var targetPlot = _plots[item.PlotIndex];
@@ -489,7 +494,7 @@ namespace EngineDA.Views
                     logger.ManageAxisLimits = false;
 
                     var channel = new ActiveChannel(sensor, logger, brush, targetPlot, item.PlotIndex + 1, 2000, RemoveSingleChannel);
-                    _activeChannels.Add(sensor.Channel, channel);
+                    _activeChannels.Add(sensor.DisplayChannel, channel);
                 }
 
                 RefreshInfoPanelLayout();
@@ -615,7 +620,7 @@ namespace EngineDA.Views
                     FontWeight = System.Windows.FontWeights.Bold,
                     TextTrimming = TextTrimming.CharacterEllipsis,
                     VerticalAlignment = System.Windows.VerticalAlignment.Center,
-                    Text = $"{star}[图{PlotIndex}] CH{config.Channel} {config.Name}"
+                    Text = $"{star}[图{PlotIndex}] {config.DisplayChannel} {config.Name}"
                 };
                 Grid.SetColumn(TitleText, 1);
                 headerGrid.Children.Add(TitleText);
