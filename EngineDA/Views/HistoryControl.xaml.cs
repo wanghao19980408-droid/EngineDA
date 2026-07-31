@@ -75,7 +75,7 @@ namespace EngineDA.Views
         private double GetStartTime()
         {
             if (double.TryParse(TxtStartTime.Text, out double val)) return val;
-            return 0.0;
+            return 0.000;
         }
 
         private void TxtStartTime_TextChanged(object sender, TextChangedEventArgs e)
@@ -144,9 +144,9 @@ namespace EngineDA.Views
         {
             var targetFiles = filePaths.Where(f => f.Contains("BID#")).ToList();
 
-            if (targetFiles.Count != 8)
+            if (targetFiles.Count == 0)
             {
-                MessageBox.Show($"文件数量异常！\n预期需要 8 个数据文件，但实际在目录下找到了 {targetFiles.Count} 个。\n请确保所选路径下仅包含“工控机1”和“工控机2”两套数据。", "文件数量错误");
+                MessageBox.Show($"未在目录下找到任何包含 BID# 的数据文件。", "文件缺失");
                 return;
             }
 
@@ -163,20 +163,20 @@ namespace EngineDA.Views
             var ipc1Files = groupedByFolder[0].ToList();
             var ipc2Files = groupedByFolder[1].ToList();
 
-            string[] orderedFiles = new string[8];
+            List<string>[] orderedFiles = new List<string>[8];
 
-            orderedFiles[0] = ipc1Files.FirstOrDefault(f => f.Contains("BID#0"))!;
-            orderedFiles[1] = ipc1Files.FirstOrDefault(f => f.Contains("BID#1"))!;
-            orderedFiles[2] = ipc1Files.FirstOrDefault(f => f.Contains("BID#2"))!;
-            orderedFiles[3] = ipc1Files.FirstOrDefault(f => f.Contains("BID#3"))!;
-            orderedFiles[4] = ipc2Files.FirstOrDefault(f => f.Contains("BID#0"))!;
-            orderedFiles[5] = ipc2Files.FirstOrDefault(f => f.Contains("BID#1"))!;
-            orderedFiles[6] = ipc2Files.FirstOrDefault(f => f.Contains("BID#2"))!;
-            orderedFiles[7] = ipc2Files.FirstOrDefault(f => f.Contains("BID#3"))!;
+            orderedFiles[0] = ipc1Files.Where(f => f.Contains("BID#0")).OrderBy(f => f).ToList();
+            orderedFiles[1] = ipc1Files.Where(f => f.Contains("BID#1")).OrderBy(f => f).ToList();
+            orderedFiles[2] = ipc1Files.Where(f => f.Contains("BID#2")).OrderBy(f => f).ToList();
+            orderedFiles[3] = ipc1Files.Where(f => f.Contains("BID#3")).OrderBy(f => f).ToList();
+            orderedFiles[4] = ipc2Files.Where(f => f.Contains("BID#15")).OrderBy(f => f).ToList();
+            orderedFiles[5] = ipc2Files.Where(f => f.Contains("BID#14")).OrderBy(f => f).ToList();
+            orderedFiles[6] = ipc2Files.Where(f => f.Contains("BID#13")).OrderBy(f => f).ToList();
+            orderedFiles[7] = ipc2Files.Where(f => f.Contains("BID#0")).OrderBy(f => f).ToList();
 
-            if (orderedFiles.Any(f => string.IsNullOrEmpty(f)))
+            if (orderedFiles.Any(list => list.Count == 0))
             {
-                MessageBox.Show("文件匹配失败！\n请检查两台工控机的文件夹内，是否都完整包含了 BID#0 到 BID#3。", "文件缺失");
+                MessageBox.Show("部分板卡文件缺失！\n请检查两台工控机的文件夹内，是否都完整包含了预期的 BID# 数据文件。", "文件缺失");
                 return;
             }
 
@@ -212,30 +212,30 @@ namespace EngineDA.Views
             }
         }
 
-        private void ParseAndMergeHighFrequencyData(string[] orderedFiles, IProgress<int> progress)
+        private void ParseAndMergeHighFrequencyData(List<string>[] orderedFiles, IProgress<int> progress)
         {
             progress.Report(1);
 
-            ParsedFile data0 = ExtractAllNumbersFast(orderedFiles[0], progress, 1, 8);
-            ParsedFile data1 = ExtractAllNumbersFast(orderedFiles[1], progress, 8, 16);
-            ParsedFile data2 = ExtractAllNumbersFast(orderedFiles[2], progress, 16, 24);
-            ParsedFile data3 = ExtractAllNumbersFast(orderedFiles[3], progress, 24, 32);
-            ParsedFile data4 = ExtractAllNumbersFast(orderedFiles[4], progress, 32, 40);
-            ParsedFile data5 = ExtractAllNumbersFast(orderedFiles[5], progress, 40, 48);
-            ParsedFile data6 = ExtractAllNumbersFast(orderedFiles[6], progress, 48, 56);
-            ParsedFile data7 = ExtractAllNumbersFast(orderedFiles[7], progress, 56, 60);
+            ParsedFile data0 = ExtractAllNumbersFastFromFiles(orderedFiles[0], progress, 0, 6);
+            ParsedFile data1 = ExtractAllNumbersFastFromFiles(orderedFiles[1], progress, 6, 12);
+            ParsedFile data2 = ExtractAllNumbersFastFromFiles(orderedFiles[2], progress, 12, 18);
+            ParsedFile data3 = ExtractAllNumbersFastFromFiles(orderedFiles[3], progress, 18, 25);
+            ParsedFile data4 = ExtractAllNumbersFastFromFiles(orderedFiles[4], progress, 25, 31);
+            ParsedFile data5 = ExtractAllNumbersFastFromFiles(orderedFiles[5], progress, 31, 37);
+            ParsedFile data6 = ExtractAllNumbersFastFromFiles(orderedFiles[6], progress, 37, 43);
+            ParsedFile data7 = ExtractAllNumbersFastFromFiles(orderedFiles[7], progress, 43, 50);
 
             Datas.Clear();
 
-            ProcessCardData(data0, 32, 0, 20000.0, progress, 60, 65, "工控机1");
-            ProcessCardData(data1, 32, 32, 1000.0, progress, 65, 70, "工控机1");
-            ProcessCardData(data2, 32, 64, 1000.0, progress, 70, 75, "工控机1");
-            ProcessCardData(data3, 32, 96, 1000.0, progress, 75, 80, "工控机1");
+            ProcessCardData(data0, 32, 0, 20000.0, progress, 50, 56, "工控机1");
+            ProcessCardData(data1, 32, 32, 1000.0, progress, 56, 62, "工控机1");
+            ProcessCardData(data2, 32, 64, 1000.0, progress, 62, 68, "工控机1");
+            ProcessCardData(data3, 32, 96, 1000.0, progress, 68, 75, "工控机1");
 
-            ProcessCardData(data4, 32, 0, 1000.0, progress, 80, 85, "工控机2");
-            ProcessCardData(data5, 32, 32, 1000.0, progress, 85, 90, "工控机2");
-            ProcessCardData(data6, 32, 64, 1000.0, progress, 90, 95, "工控机2");
-            ProcessCardData(data7, 32, 96, 1000.0, progress, 95, 100, "工控机2");
+            ProcessCardData(data4, 32, 0, 20000.0, progress, 75, 81, "工控机2");
+            ProcessCardData(data5, 32, 32, 1000.0, progress, 81, 87, "工控机2");
+            ProcessCardData(data6, 32, 64, 1000.0, progress, 87, 93, "工控机2");
+            ProcessCardData(data7, 32, 96, 1000.0, progress, 93, 100, "工控机2");
 
             Application.Current.Dispatcher.Invoke(() =>
             {
@@ -305,7 +305,9 @@ namespace EngineDA.Views
 
             var dst = new double[n];
             int half = windowSize / 2;
+
             var win = new double[windowSize + 4];
+            var sortedWin = new double[windowSize + 4];
             var deviations = new double[windowSize + 4];
 
             double thresholdFactor = 3.0;
@@ -319,9 +321,8 @@ namespace EngineDA.Views
                     win[count++] = src[idx];
                 }
 
-                var sortedWin = new double[count];
                 Array.Copy(win, sortedWin, count);
-                Array.Sort(sortedWin);
+                Array.Sort(sortedWin, 0, count);
                 double median = sortedWin[count / 2];
 
                 for (int j = 0; j < count; j++)
@@ -346,35 +347,38 @@ namespace EngineDA.Views
             return dst;
         }
 
-        private ParsedFile ExtractAllNumbersFast(string filePath, IProgress<int> progress, int startPercent, int endPercent)
+        private ParsedFile ExtractAllNumbersFastFromFiles(List<string> filePaths, IProgress<int> progress, int startPercent, int endPercent)
         {
             ParsedFile pf = new ParsedFile();
-            long totalLength = new FileInfo(filePath).Length;
+            long totalLength = filePaths.Sum(f => new FileInfo(f).Length);
+            long bytesRead = 0;
+            int lastReported = startPercent;
 
-            using (StreamReader sr = new StreamReader(filePath))
+            foreach (var filePath in filePaths)
             {
-                string? line;
-                long bytesRead = 0;
-                int lastReported = startPercent;
-
-                while ((line = sr.ReadLine()) != null)
+                using (StreamReader sr = new StreamReader(filePath))
                 {
-                    bytesRead += line.Length + 2;
-                    if (string.IsNullOrWhiteSpace(line)) continue;
-                    var parts = line.Split(new char[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                    foreach (var part in parts)
+                    string? line;
+                    while ((line = sr.ReadLine()) != null)
                     {
-                        if (part.StartsWith("[")) continue;
-                        if (double.TryParse(part, out double val)) pf.Values.Add(val);
-                    }
+                        bytesRead += line.Length + 2;
+                        if (string.IsNullOrWhiteSpace(line)) continue;
 
-                    if (totalLength > 0)
-                    {
-                        int currentPercent = startPercent + (int)(bytesRead * (endPercent - startPercent) / totalLength);
-                        if (currentPercent > lastReported && currentPercent <= endPercent)
+                        var parts = line.Split(new char[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                        foreach (var part in parts)
                         {
-                            progress.Report(currentPercent);
-                            lastReported = currentPercent;
+                            if (part.StartsWith("[")) continue;
+                            if (double.TryParse(part, out double val)) pf.Values.Add(val);
+                        }
+
+                        if (totalLength > 0)
+                        {
+                            int currentPercent = startPercent + (int)(bytesRead * (endPercent - startPercent) / totalLength);
+                            if (currentPercent > lastReported && currentPercent <= endPercent)
+                            {
+                                progress.Report(currentPercent);
+                                lastReported = currentPercent;
+                            }
                         }
                     }
                 }
@@ -451,7 +455,7 @@ namespace EngineDA.Views
 
             _timeLine.X = xSec;
 
-            if (TxtSliderTime != null) TxtSliderTime.Text = $"当前时刻: {xSec:F2} 秒";
+            if (TxtSliderTime != null) TxtSliderTime.Text = $"当前时刻: {xSec:F3} 秒";
 
             _cursorItems.Clear();
 
@@ -484,7 +488,7 @@ namespace EngineDA.Views
         {
             if (Keyboard.FocusedElement is TextBox) return;
 
-            double step = (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)) ? 0.5 : 0.01;
+            double step = (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)) ? 0.01 : 0.001;
 
             if (e.Key == Key.Left)
             {

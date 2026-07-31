@@ -25,11 +25,6 @@ namespace EngineDA.ViewModels
 
         public ConfigViewModel()
         {
-            string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
-
-            enableIpc1 = IniConfigHelper.ReadIniData("IPC1", "Enable", "True", iniPath).Equals("True", StringComparison.OrdinalIgnoreCase);
-            enableIpc2 = IniConfigHelper.ReadIniData("IPC2", "Enable", "False", iniPath).Equals("True", StringComparison.OrdinalIgnoreCase);
-
             _service = new SensorConfigService();
             LoadConfigs();
         }
@@ -46,9 +41,6 @@ namespace EngineDA.ViewModels
 
             foreach (var sheet in sheetNames)
             {
-                if (sheet == "工控机1" && !enableIpc1) continue;
-                if (sheet == "工控机2" && !enableIpc2) continue;
-
                 var sheetConfig = new SheetConfig
                 {
                     SheetName = sheet,
