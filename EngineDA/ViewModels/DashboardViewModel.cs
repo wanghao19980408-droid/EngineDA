@@ -74,15 +74,16 @@ namespace EngineDA.ViewModels
             {
                 Application.Current?.Dispatcher.Invoke(() =>
                 {
-                    r.LoadIpcEnableConfig(); 
+                    r.LoadIpcEnableConfig();
                     r.LoadSensorConfigs();
                     r._filteredSensorsView?.Refresh();
                 });
             });
 
+            // 监听保存网络配置后的重新连接指令
             WeakReferenceMessenger.Default.Register<DashboardViewModel, CommConfigChangedMessage>(this, (r, m) =>
             {
-                Application.Current?.Dispatcher.Invoke(() =>
+                Application.Current?.Dispatcher.InvokeAsync(() =>
                 {
                     r.RestartUdp();
                 });
@@ -239,6 +240,12 @@ namespace EngineDA.ViewModels
             catch (Exception ex)
             {
                 Debug.WriteLine($"UDP Init Error: {ex.Message}");
+                // 防止端口被占用导致的静默失败，使用主线程弹出提示
+                Application.Current?.Dispatcher.InvokeAsync(() =>
+                {
+                    var errorDialog = new EngineDA.Views.ConfirmDialog($"UDP 网络绑定失败，请检查端口是否被占用:\n{ex.Message}");
+                    errorDialog.ShowDialog();
+                });
             }
         }
 
@@ -246,6 +253,7 @@ namespace EngineDA.ViewModels
         {
             try
             {
+                // 1. 先安全停用旧的UDP连接
                 if (_udpService1 != null)
                 {
                     _udpService1.DataReceived -= OnGeneralUdpDataReceived;
@@ -262,15 +270,27 @@ namespace EngineDA.ViewModels
 
                 IsConnected = false;
 
+                // 2. 重新加载配置和传感器映射
                 LoadIpcEnableConfig();
                 LoadSensorConfigs();
-                _filteredSensorsView?.Refresh();
 
+                // 3. 安全刷新UI视图
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    _filteredSensorsView?.Refresh();
+                });
+
+                // 4. 重新启动UDP服务
                 InitializeUdp();
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Restart UDP Error: {ex.Message}");
+                Application.Current?.Dispatcher.InvokeAsync(() =>
+                {
+                    var errorDialog = new EngineDA.Views.ConfirmDialog($"重启 UDP 服务出现异常:\n{ex.Message}");
+                    errorDialog.ShowDialog();
+                });
             }
         }
 
@@ -312,9 +332,6 @@ namespace EngineDA.ViewModels
             bool is2Connected = _udpService2?.IsConnected ?? false;
 
             IsConnected = is1Connected || is2Connected;
-
-            OnPropertyChanged(nameof(ConnectionStatusText));
-            OnPropertyChanged(nameof(ConnectionStatusColor));
         }
 
         public event EventHandler? DataUpdated;

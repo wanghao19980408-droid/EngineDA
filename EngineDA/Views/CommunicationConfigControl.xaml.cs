@@ -13,6 +13,7 @@ namespace EngineDA.Views
         private readonly string iniPath;
         ConfigViewModel viewModel;
         HistoryControl historyControl;
+
         public CommunicationConfigControl(string iniPath)
         {
             InitializeComponent();
@@ -61,6 +62,7 @@ namespace EngineDA.Views
                     IniConfigHelper.WriteIniData("IPC2", "Enable", chkEnableIpc2.IsChecked == true ? "True" : "False", iniPath);
                     IniConfigHelper.WriteIniData("IPC2", "IP", txtIpc2IP.Text.Trim(), iniPath);
                     IniConfigHelper.WriteIniData("IPC2", "PORT", txtIpc2Port.Text.Trim(), iniPath);
+
                     viewModel.LoadConfigs();
                     historyControl.AutoLoadSystemConfigs();
                     Close();
