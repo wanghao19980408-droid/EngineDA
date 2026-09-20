@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using EngineDA.ViewModels;
@@ -25,6 +25,9 @@ namespace EngineDA
         private Point dragStartPoint;
         private bool isDragging = false;
 
+        private DispatcherTimer clockTimer;
+        private Stopwatch stopwatch = new Stopwatch();
+
         public MainWindow()
         {
             InitializeComponent();
@@ -37,13 +40,13 @@ namespace EngineDA
             MainContentGrid.Children.Add(historyControl);
             MainContentGrid.Children.Add(configControl);
 
-
             var trendsControl = new TrendsControl();
-
             dynamicTrends.Add(trendsControl);
             TrendsContainer.Children.Add(trendsControl);
 
             this.DataContext = dashboardVM;
+
+            dashboardVM.TimeSyncStateChanged += OnTimeSyncStateChanged;
             dashboardVM.InitializeUdp();
 
             ShowPage(realTimeDataControl);
@@ -97,15 +100,25 @@ namespace EngineDA
 
         private void Close_Click(object sender, RoutedEventArgs e)
         {
+            Close();
+        }
+
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
             var dialog = new ConfirmDialog("确定要关闭程序吗？");
             dialog.ShowDialog();
 
             if (dialog.Result)
             {
-                dashboardVM.Dispose();
-                Close();
+                dashboardVM?.Dispose();
+                base.OnClosing(e);
+            }
+            else
+            {
+                e.Cancel = true;
             }
         }
+
         private void OpenAdvancedConfig_Click(object sender, RoutedEventArgs e)
         {
             var pwdDialog = new PasswordDialog();
@@ -116,6 +129,7 @@ namespace EngineDA
                 new FilterConfigWindow().ShowDialog();
             }
         }
+
         private void Border_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ClickCount == 2)
@@ -132,8 +146,8 @@ namespace EngineDA
 
                 if (this.WindowState == WindowState.Normal)
                 {
-                    this.DragMove();
                     isDragging = false;
+                    try { this.DragMove(); } catch (InvalidOperationException) { }
                 }
             }
         }
@@ -175,7 +189,7 @@ namespace EngineDA
 
                     isDragging = false;
 
-                    this.DragMove();
+                    try { this.DragMove(); } catch (InvalidOperationException) { }
                 }
             }
         }
@@ -196,10 +210,47 @@ namespace EngineDA
             new CommunicationConfigControl(iniPath).ShowDialog();
         }
 
+        private void OnTimeSyncStateChanged(bool isActive)
+        {
+            if (isActive)
+            {
+                stopwatch.Start();
+            }
+            else
+            {
+                stopwatch.Stop();
+            }
+        }
+
         public void StartClock()
         {
-            var clockTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            clockTimer = new DispatcherTimer(DispatcherPriority.Normal) { Interval = TimeSpan.FromMilliseconds(30) };
+            clockTimer.Tick += (s, e) =>
+            {
+                TimeSpan ts = stopwatch.Elapsed;
+                if (TimerText != null)
+                {
+                    TimerText.Text = string.Format("{0:00}.{1:000}", Math.Floor(ts.TotalSeconds), ts.Milliseconds);
+                }
+            };
             clockTimer.Start();
+        }
+
+        private void Reset_Click(object sender, RoutedEventArgs e)
+        {
+            if (stopwatch.IsRunning)
+            {
+                stopwatch.Restart();
+            }
+            else
+            {
+                stopwatch.Reset();
+
+                if (TimerText != null)
+                {
+                    TimerText.Text = "00.000";
+                }
+            }
         }
 
         private void ShowPage(UIElement page)

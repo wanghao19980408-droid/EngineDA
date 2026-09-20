@@ -86,6 +86,27 @@
                             FontWeight="Bold"
                             Foreground="#E0E0E0"
                             Text="寰宇航天 | 发动机采集系统" />
+                        <TextBlock
+                            x:Name="TimerText"
+                            Margin="500,0,0,0"
+                            VerticalAlignment="Center"
+                            FontSize="40"
+                            FontWeight="Bold"
+                            Foreground="Yellow"
+                            Text="000.000" />
+
+                        <Button
+                            Width="60"
+                            Height="60"
+                            Margin="10,0,0,0"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Click="Reset_Click"
+                            Content="↺"
+                            Cursor="Hand"
+                            FontSize="40"
+                            Foreground="#E0E0E0"
+                            ToolTip="重置" />
                     </StackPanel>
 
                     <StackPanel

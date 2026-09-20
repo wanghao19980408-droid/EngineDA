@@ -19,13 +19,25 @@ namespace EngineDA.Services
 
         public ObservableCollection<SensorConfig> LoadConfigs(string sheetName)
         {
-            if (!File.Exists(ConfigPath))
+            try
             {
-                return new ObservableCollection<SensorConfig>(); 
+                if (!File.Exists(ConfigPath))
+                {
+                    return new ObservableCollection<SensorConfig>();
+                }
+                var list = MiniExcel.Query<SensorConfig>(ConfigPath, sheetName).ToList();
+                return new ObservableCollection<SensorConfig>(list);
             }
-
-            var list = MiniExcel.Query<SensorConfig>(ConfigPath, sheetName).ToList();
-            return new ObservableCollection<SensorConfig>(list);
+            catch (IOException)
+            {
+                System.Diagnostics.Debug.WriteLine($"无法加载配置：{ConfigPath} 正被其他程序占用。");
+                return new ObservableCollection<SensorConfig>();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"加载配置失败: {ex.Message}");
+                return new ObservableCollection<SensorConfig>();
+            }
         }
 
         public void SaveAllConfigs(IEnumerable<SheetConfig> sheets)
@@ -44,8 +56,15 @@ namespace EngineDA.Services
 
         public List<string> GetSheetNames()
         {
-            if (!File.Exists(ConfigPath)) return new List<string>();
-            return MiniExcel.GetSheetNames(ConfigPath).ToList();
+            try
+            {
+                if (!File.Exists(ConfigPath)) return new List<string>();
+                return MiniExcel.GetSheetNames(ConfigPath).ToList();
+            }
+            catch
+            {
+                return new List<string>();
+            }
         }
     }
 }

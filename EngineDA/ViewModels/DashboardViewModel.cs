@@ -19,26 +19,25 @@ namespace EngineDA.ViewModels
 {
     public partial class DashboardViewModel : ObservableObject, IDisposable
     {
-        #region 核心数据与状态
-
         public ObservableCollection<SensorDisplay> Sensors { get; } = new();
 
-        private readonly CollectionView _filteredSensorsView;
-        public ICollectionView FilteredSensorsView => _filteredSensorsView;
+        private readonly CollectionView filteredSensorsView;
+        public ICollectionView FilteredSensorsView => filteredSensorsView;
 
-        private UdpDataService? _udpService1;
-        private UdpDataService? _udpService2;
+        private UdpDataService? udpService1;
+        private UdpDataService? udpService2;
         private bool enableIpc1 = false;
         private bool enableIpc2 = false;
-        private readonly SensorConfigService _configService;
+        private readonly SensorConfigService configService;
 
-        private readonly Stopwatch _processStopwatch = new();
-        private DispatcherTimer? _clockTimer;
+        private readonly Stopwatch processStopwatch = new();
+        private DispatcherTimer? clockTimer;
 
-        private bool _isDisposed = false;
-        #endregion
+        private bool isDisposed = false;
+        private bool isTimeSyncActive = false;
 
-        #region 可绑定属性 (Observable Properties)
+        public event Action<bool>? TimeSyncStateChanged;
+        public event EventHandler? DataUpdated;
 
         [ObservableProperty]
         private string searchText = string.Empty;
@@ -54,18 +53,15 @@ namespace EngineDA.ViewModels
         public string ConnectionStatusText => IsConnected ? "已连接" : "未连接";
         public Brush ConnectionStatusColor => IsConnected ? Brushes.LimeGreen : Brushes.Red;
 
-        #endregion
-
-        #region 构造与初始化
         public DashboardViewModel()
         {
-            _configService = new SensorConfigService();
+            configService = new SensorConfigService();
 
             LoadIpcEnableConfig();
             LoadSensorConfigs();
 
-            _filteredSensorsView = (CollectionView)CollectionViewSource.GetDefaultView(Sensors);
-            _filteredSensorsView.Filter = FilterSensor;
+            filteredSensorsView = (CollectionView)CollectionViewSource.GetDefaultView(Sensors);
+            filteredSensorsView.Filter = FilterSensor;
             SetupGrouping();
 
             StartTimers();
@@ -76,11 +72,10 @@ namespace EngineDA.ViewModels
                 {
                     r.LoadIpcEnableConfig();
                     r.LoadSensorConfigs();
-                    r._filteredSensorsView?.Refresh();
+                    r.filteredSensorsView?.Refresh();
                 });
             });
 
-            // 监听保存网络配置后的重新连接指令
             WeakReferenceMessenger.Default.Register<DashboardViewModel, CommConfigChangedMessage>(this, (r, m) =>
             {
                 Application.Current?.Dispatcher.InvokeAsync(() =>
@@ -100,18 +95,18 @@ namespace EngineDA.ViewModels
 
         private void SetupGrouping()
         {
-            if (_filteredSensorsView == null) return;
+            if (filteredSensorsView == null) return;
 
-            _filteredSensorsView.GroupDescriptions.Clear();
-            _filteredSensorsView.GroupDescriptions.Add(new PropertyGroupDescription("DisplayGroup"));
+            filteredSensorsView.GroupDescriptions.Clear();
+            filteredSensorsView.GroupDescriptions.Add(new PropertyGroupDescription("DisplayGroup"));
 
-            _filteredSensorsView.SortDescriptions.Clear();
-            _filteredSensorsView.SortDescriptions.Add(new SortDescription("IsImportant", ListSortDirection.Descending));
-            _filteredSensorsView.SortDescriptions.Add(new SortDescription("OrderIndex", ListSortDirection.Ascending));
-            _filteredSensorsView.SortDescriptions.Add(new SortDescription("Unit", ListSortDirection.Ascending));
-            _filteredSensorsView.SortDescriptions.Add(new SortDescription("Channel", ListSortDirection.Ascending));
+            filteredSensorsView.SortDescriptions.Clear();
+            filteredSensorsView.SortDescriptions.Add(new SortDescription("IsImportant", ListSortDirection.Descending));
+            filteredSensorsView.SortDescriptions.Add(new SortDescription("OrderIndex", ListSortDirection.Ascending));
+            filteredSensorsView.SortDescriptions.Add(new SortDescription("Unit", ListSortDirection.Ascending));
+            filteredSensorsView.SortDescriptions.Add(new SortDescription("Channel", ListSortDirection.Ascending));
 
-            if (_filteredSensorsView is ICollectionViewLiveShaping liveView && liveView.CanChangeLiveSorting)
+            if (filteredSensorsView is ICollectionViewLiveShaping liveView && liveView.CanChangeLiveSorting)
             {
                 liveView.LiveSortingProperties.Add(nameof(SensorDisplay.IsImportant));
                 liveView.LiveSortingProperties.Add(nameof(SensorDisplay.OrderIndex));
@@ -124,18 +119,14 @@ namespace EngineDA.ViewModels
 
         private void StartTimers()
         {
-            _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            _clockTimer.Tick += (_, _) => CurrentTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            _clockTimer.Start();
+            clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            clockTimer.Tick += (_, _) => CurrentTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            clockTimer.Start();
         }
-
-        #endregion
-
-        #region 命令 (Commands)
 
         partial void OnSearchTextChanged(string value)
         {
-            _filteredSensorsView.Refresh();
+            filteredSensorsView.Refresh();
         }
 
         private bool FilterSensor(object obj)
@@ -202,37 +193,31 @@ namespace EngineDA.ViewModels
             }
         }
 
-        #endregion
-
-        #region UDP 通信逻辑
-
         public void InitializeUdp()
         {
-            if (_udpService1 != null || _udpService2 != null) return;
+            if (udpService1 != null || udpService2 != null) return;
 
             try
             {
                 string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
                 string localIp = "0.0.0.0";
 
-                // 初始化 工控机1
                 if (enableIpc1)
                 {
-                    _udpService1 = new UdpDataService();
+                    udpService1 = new UdpDataService();
                     string ip1 = IniConfigHelper.ReadIniData("IPC1", "IP", "192.168.1.100", iniPath);
                     int port1 = int.Parse(IniConfigHelper.ReadIniData("IPC1", "PORT", "8063", iniPath));
-                    _udpService1.Initialize(localIp, ip1, port1);
-                    _udpService1.DataReceived += OnGeneralUdpDataReceived;
+                    udpService1.Initialize(localIp, ip1, port1);
+                    udpService1.DataReceived += OnGeneralUdpDataReceived;
                 }
 
-                // 初始化 工控机2
                 if (enableIpc2)
                 {
-                    _udpService2 = new UdpDataService();
+                    udpService2 = new UdpDataService();
                     string ip2 = IniConfigHelper.ReadIniData("IPC2", "IP", "192.168.1.101", iniPath);
                     int port2 = int.Parse(IniConfigHelper.ReadIniData("IPC2", "PORT", "8064", iniPath));
-                    _udpService2.Initialize(localIp, ip2, port2);
-                    _udpService2.DataReceived += OnGeneralUdpDataReceived;
+                    udpService2.Initialize(localIp, ip2, port2);
+                    udpService2.DataReceived += OnGeneralUdpDataReceived;
                 }
 
                 UpdateConnectionStatus();
@@ -240,7 +225,6 @@ namespace EngineDA.ViewModels
             catch (Exception ex)
             {
                 Debug.WriteLine($"UDP Init Error: {ex.Message}");
-                // 防止端口被占用导致的静默失败，使用主线程弹出提示
                 Application.Current?.Dispatcher.InvokeAsync(() =>
                 {
                     var errorDialog = new EngineDA.Views.ConfirmDialog($"UDP 网络绑定失败，请检查端口是否被占用:\n{ex.Message}");
@@ -253,34 +237,30 @@ namespace EngineDA.ViewModels
         {
             try
             {
-                // 1. 先安全停用旧的UDP连接
-                if (_udpService1 != null)
+                if (udpService1 != null)
                 {
-                    _udpService1.DataReceived -= OnGeneralUdpDataReceived;
-                    _udpService1.Stop();
-                    _udpService1 = null;
+                    udpService1.DataReceived -= OnGeneralUdpDataReceived;
+                    udpService1.Stop();
+                    udpService1 = null;
                 }
 
-                if (_udpService2 != null)
+                if (udpService2 != null)
                 {
-                    _udpService2.DataReceived -= OnGeneralUdpDataReceived;
-                    _udpService2.Stop();
-                    _udpService2 = null;
+                    udpService2.DataReceived -= OnGeneralUdpDataReceived;
+                    udpService2.Stop();
+                    udpService2 = null;
                 }
 
                 IsConnected = false;
 
-                // 2. 重新加载配置和传感器映射
                 LoadIpcEnableConfig();
                 LoadSensorConfigs();
 
-                // 3. 安全刷新UI视图
                 Application.Current?.Dispatcher.Invoke(() =>
                 {
-                    _filteredSensorsView?.Refresh();
+                    filteredSensorsView?.Refresh();
                 });
 
-                // 4. 重新启动UDP服务
                 InitializeUdp();
             }
             catch (Exception ex)
@@ -293,13 +273,16 @@ namespace EngineDA.ViewModels
                 });
             }
         }
-
+        
         private void OnGeneralUdpDataReceived(object? sender, short[] data)
         {
-            App.Current.Dispatcher.InvokeAsync(() =>
+            var app = Application.Current;
+            if (app == null || app.Dispatcher.HasShutdownStarted) return;
+
+            app.Dispatcher.InvokeAsync(() =>
             {
-                bool isFromIpc1 = sender == _udpService1;
-                bool isFromIpc2 = sender == _udpService2;
+                bool isFromIpc1 = sender == udpService1;
+                bool isFromIpc2 = sender == udpService2;
 
                 foreach (var sensor in Sensors)
                 {
@@ -308,6 +291,30 @@ namespace EngineDA.ViewModels
 
                     if (sensor.Channel < 0 || sensor.Channel >= data.Length) continue;
                     sensor.RawVoltage = data[sensor.Channel] / 1000f;
+
+                    if (sensor.MachineName == "工控机1" && sensor.Name == "时统信号")
+                    {
+                        bool isActive = sensor.RawVoltage > 1.0f;
+                        if (isActive && sensor.Name == "总推力") 
+                        {
+                            sensor.Bvalue -= sensor.Value;
+                        }
+                        if (isActive != isTimeSyncActive)
+                        {
+                            isTimeSyncActive = isActive;
+                            TimeSyncStateChanged?.Invoke(isTimeSyncActive);
+                        }
+                    }
+                    var totalThrustSensor = Sensors.FirstOrDefault(s => s.Name == "总推力");
+
+                    if (totalThrustSensor != null)
+                    {
+                        double sumRawVoltage = Sensors
+                            .Where(s => s.Unit.Equals("KN", StringComparison.OrdinalIgnoreCase) && s.Name != "总推力")
+                            .Sum(s => s.RawVoltage);
+
+                        totalThrustSensor.RawVoltage = sumRawVoltage;
+                    }   
                 }
 
                 DataUpdated?.Invoke(this, EventArgs.Empty);
@@ -320,25 +327,13 @@ namespace EngineDA.ViewModels
             sensor.IsAbnormal = false;
         }
 
-        private void NotifyDataUpdated()
-        {
-            DataUpdated?.Invoke(this, EventArgs.Empty);
-            UpdateConnectionStatus();
-        }
-
         private void UpdateConnectionStatus()
         {
-            bool is1Connected = _udpService1?.IsConnected ?? false;
-            bool is2Connected = _udpService2?.IsConnected ?? false;
+            bool is1Connected = udpService1?.IsConnected ?? false;
+            bool is2Connected = udpService2?.IsConnected ?? false;
 
             IsConnected = is1Connected || is2Connected;
         }
-
-        public event EventHandler? DataUpdated;
-
-        #endregion
-
-        #region 配置加载
 
         private void LoadSensorConfigs()
         {
@@ -352,7 +347,7 @@ namespace EngineDA.ViewModels
 
             if (enableIpc1)
             {
-                var configs1 = _configService.LoadConfigs("工控机1");
+                var configs1 = configService.LoadConfigs("工控机1");
                 foreach (var cfg in configs1)
                 {
                     if (cfg.Name == "备用") continue;
@@ -365,7 +360,7 @@ namespace EngineDA.ViewModels
 
             if (enableIpc2)
             {
-                var configs2 = _configService.LoadConfigs("工控机2");
+                var configs2 = configService.LoadConfigs("工控机2");
                 foreach (var cfg in configs2)
                 {
                     if (cfg.Name == "备用") continue;
@@ -397,30 +392,24 @@ namespace EngineDA.ViewModels
             };
         }
 
-        #endregion
-
-        #region 资源释放 (IDisposable)
-
         public void Dispose()
         {
-            if (_isDisposed) return;
+            if (isDisposed) return;
 
-            _clockTimer?.Stop();
-            _processStopwatch.Stop();
+            clockTimer?.Stop();
+            processStopwatch.Stop();
 
             try
             {
-                _udpService1?.Stop();
-                _udpService1 = null;
+                udpService1?.Stop();
+                udpService1 = null;
 
-                _udpService2?.Stop();
-                _udpService2 = null;
+                udpService2?.Stop();
+                udpService2 = null;
             }
             catch { }
 
-            _isDisposed = true;
+            isDisposed = true;
         }
-
-        #endregion
     }
 }

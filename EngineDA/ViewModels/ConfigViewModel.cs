@@ -15,9 +15,6 @@ namespace EngineDA.ViewModels
     {
         public ObservableCollection<SheetConfig> Sheets { get; set; } = new();
 
-        private bool enableIpc1;
-        private bool enableIpc2;
-
         [ObservableProperty]
         private SensorConfig? selectedSensorConfig;
 
